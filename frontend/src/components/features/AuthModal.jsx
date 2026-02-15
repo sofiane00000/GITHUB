@@ -79,7 +79,7 @@ export function AuthModal({ isOpen, onClose }) {
       const message = error.response?.data?.detail || 'Identifiants incorrects';
       toast.error(message);
     } finally {
-      setIsLoading(true);
+      setIsLoading(false);
     }
   };
 
