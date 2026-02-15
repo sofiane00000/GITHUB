@@ -179,11 +179,10 @@ export function AuthModal({ isOpen, onClose }) {
                       required
                       data-testid="pronote-url-input"
                     />
-                      <p className="text-xs text-muted-foreground">
-                        Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
-                      </p>
-                    </div>
-                  )}
+                    <p className="text-xs text-muted-foreground">
+                      Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
+                    </p>
+                  </div>
                 </>
               )}
 
