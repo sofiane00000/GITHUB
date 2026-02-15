@@ -213,22 +213,28 @@ def connect_pronote(username: str, password: str, ent_id: str, pronote_url: str 
 
 # ==================== ECOLEDIRECTE CLIENT ====================
 
-async def connect_ecoledirecte(username: str, password: str):
-    """Connect to EcoleDirecte using async API"""
+def connect_ecoledirecte_sync(username: str, password: str):
+    """Connect to EcoleDirecte using EcoleDirectePy (sync)"""
     try:
-        from ecoledirecte import EDClient
+        import EcoleDirectePy
         
-        # Create client and login
-        client = EDClient(username, password)
-        await client.login()
+        result = EcoleDirectePy.login(username, password)
         
-        return client, None
+        if result and result.get('code') == 200:
+            # Login successful
+            return result, None
+        elif result and result.get('code') == 505:
+            return None, "Identifiants EcoleDirecte incorrects"
+        else:
+            return None, result.get('message', 'Erreur de connexion EcoleDirecte')
     except Exception as e:
         logging.error(f"EcoleDirecte login error: {e}")
-        error_msg = str(e)
-        if "Invalid credentials" in error_msg or "401" in error_msg:
-            return None, "Identifiants EcoleDirecte incorrects"
-        return None, error_msg
+        return None, str(e)
+
+async def connect_ecoledirecte(username: str, password: str):
+    """Async wrapper for EcoleDirecte connection"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, connect_ecoledirecte_sync, username, password)
 
 # ==================== DATA SERIALIZERS ====================
 
