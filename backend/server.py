@@ -617,24 +617,23 @@ async def get_timetable(date_str: Optional[str] = None, current_user: dict = Dep
         
         lessons = []
         try:
-            import EcoleDirectePy
-            week_start = target_date - timedelta(days=target_date.weekday())
-            week_end = week_start + timedelta(days=6)
-            raw_edt = EcoleDirectePy.emploidutemps(
-                week_start.strftime("%Y-%m-%d"),
-                week_end.strftime("%Y-%m-%d")
-            )
-            if raw_edt:
-                for cours in raw_edt:
-                    lessons.append({
-                        "id": str(uuid.uuid4()),
-                        "subject": cours.get("matiere", "Cours"),
-                        "teacher": cours.get("prof", ""),
-                        "room": cours.get("salle", ""),
-                        "start": cours.get("start_date", ""),
-                        "end": cours.get("end_date", ""),
-                        "canceled": cours.get("isAnnule", False),
-                    })
+            # Get timetable from async ecoledirecte client
+            if hasattr(client, 'get_timetable'):
+                week_start = target_date - timedelta(days=target_date.weekday())
+                week_end = week_start + timedelta(days=6)
+                raw_edt = await client.get_timetable(week_start, week_end)
+                if raw_edt:
+                    for cours in raw_edt:
+                        lessons.append({
+                            "id": str(uuid.uuid4()),
+                            "subject": cours.get("matiere", "Cours"),
+                            "subject_color": "#F43F5E",
+                            "teacher": cours.get("prof", ""),
+                            "room": cours.get("salle", ""),
+                            "start": cours.get("start_date", "") or cours.get("startDate", ""),
+                            "end": cours.get("end_date", "") or cours.get("endDate", ""),
+                            "canceled": cours.get("isAnnule", False),
+                        })
         except Exception as e:
             logging.error(f"Error fetching ED schedule: {e}")
         
