@@ -1,0 +1,154 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "Papillon",
+      "tagline": "L'école qui vous donne des ailes",
+      "mood": "Evolutionary, Lightweight, Intelligent, Connected",
+      "theme_strategy": "Smart Adaptive (User-customizable)",
+      "primary_archetype": "The Electric Scholar (Focus + Energy)"
+    },
+    "typography": {
+      "font_family": {
+        "headings": "Plus Jakarta Sans, sans-serif",
+        "body": "Inter, sans-serif",
+        "accent": "JetBrains Mono, monospace"
+      },
+      "weights": {
+        "headings": "700",
+        "subheadings": "600",
+        "body": "400",
+        "accent": "500"
+      },
+      "usage_rules": {
+        "headings": "Use tight tracking (-0.02em) for sizes over 24px.",
+        "captions": "Uppercase, wide tracking (0.05em), tiny size (11-12px)."
+      }
+    },
+    "colors": {
+      "palette": {
+        "primary": {
+          "DEFAULT": "#4F46E5",
+          "foreground": "#FFFFFF",
+          "description": "Electric Indigo - Focus & Intelligence"
+        },
+        "secondary": {
+          "DEFAULT": "#F43F5E",
+          "foreground": "#FFFFFF",
+          "description": "Vibrant Coral - Energy & Alerts"
+        },
+        "accent": {
+          "DEFAULT": "#0EA5E9",
+          "foreground": "#FFFFFF",
+          "description": "Sky Blue - Clarity & Air"
+        },
+        "background": {
+          "light": "#F8FAFC",
+          "dark": "#0F172A",
+          "paper_light": "#FFFFFF",
+          "paper_dark": "#1E293B"
+        },
+        "surface": {
+          "glass_light": "rgba(255, 255, 255, 0.7)",
+          "glass_dark": "rgba(15, 23, 42, 0.6)"
+        }
+      },
+      "gradients": {
+        "hero": "linear-gradient(135deg, #4F46E5 0%, #F43F5E 100%)",
+        "subtle_mesh": "radial-gradient(at 40% 20%, rgba(79, 70, 229, 0.1) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(244, 63, 94, 0.1) 0px, transparent 50%)"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-12",
+      "card_padding": "p-6",
+      "section_gap": "gap-8"
+    },
+    "radius": {
+      "default": "rounded-xl",
+      "card": "rounded-2xl",
+      "button": "rounded-full"
+    },
+    "shadows": {
+      "card": "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)",
+      "card_hover": "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)",
+      "glow_primary": "0 0 20px rgba(79, 70, 229, 0.3)"
+    }
+  },
+  "assets": {
+    "images": {
+      "hero_bg": {
+        "url": "https://images.unsplash.com/photo-1767102060241-130cb9260718?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "alt": "Modern library study setting",
+        "usage": "Landing page hero background with overlay"
+      },
+      "student_avatar": {
+        "url": "https://images.unsplash.com/photo-1758685733395-dba201403b4d?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "alt": "Happy student with laptop",
+        "usage": "Student dashboard profile placeholder"
+      },
+      "abstract_shape": {
+        "url": "https://images.unsplash.com/photo-1665186096459-7417e8ea59b8?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "alt": "Abstract digital shapes",
+        "usage": "Decorative background elements for login/signup"
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "instructions": "Use Lucide React for all UI icons. Use Phosphor Icons (Duotone) for feature highlights if needed."
+    }
+  },
+  "layout_strategies": {
+    "dashboard_grid": {
+      "type": "Bento Grid",
+      "classes": "grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 auto-rows-[minmax(180px,auto)]",
+      "items": {
+        "main_stats": "col-span-full lg:col-span-8 row-span-2",
+        "sidebar_widget": "col-span-full md:col-span-2 lg:col-span-4 row-span-2",
+        "quick_action": "col-span-1 md:col-span-1 lg:col-span-2 row-span-1"
+      }
+    },
+    "landing_page": {
+      "hero": "Full viewport height (min-h-screen), asymmetric text placement",
+      "features": "Zig-zag layout with floating 3D-style elements"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-glow_primary rounded-full px-8 py-3 font-semibold",
+      "secondary": "bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors rounded-full px-6 py-2 font-medium"
+    },
+    "cards": {
+      "default": "bg-card text-card-foreground rounded-2xl border border-border/50 shadow-card hover:shadow-card_hover transition-all duration-300 hover:-translate-y-1 group",
+      "glass": "bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 shadow-lg"
+    },
+    "inputs": {
+      "default": "bg-background border-input ring-offset-background focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+    }
+  },
+  "interactive_elements": {
+    "gamification": {
+      "xp_bar": "Gradient progress bar (from accent to primary)",
+      "badges": "Neumorphic style or glassmorphism with vivid icons"
+    },
+    "ai_assistant": {
+      "trigger": "Floating Action Button (bottom-right) or Integrated Chat Sidebar",
+      "style": "Glassmorphic bubble with pulsing glow effect"
+    }
+  },
+  "universal_guidelines": [
+    "DO NOT use 'Inter' for Headings. Use 'Plus Jakarta Sans'.",
+    "DO NOT use generic centered layouts. Use asymmetry.",
+    "DO NOT use full-screen solid flat colors. Use noise/grain or subtle gradients.",
+    "ALWAYS add a 'data-testid' to interactive elements.",
+    "ALWAYS use 'sonner' for toasts.",
+    "Dark mode should use 'slate-900' or 'zinc-950', NEVER pure black '#000000'.",
+    "Interactive elements must have a scale-down effect on click (active:scale-95)."
+  ],
+  "instructions_to_main_agent": [
+    "Install 'lucide-react', 'recharts', 'framer-motion', 'clsx', 'tailwind-merge', 'sonner', 'date-fns'.",
+    "Use 'recharts' for the grades analytics and progress tracking.",
+    "Implement the 'Theme Customizer' using CSS variables in a root provider.",
+    "For the Timeline/Calendar, use a custom grid implementation or a library like 'react-big-calendar' styled heavily.",
+    "Ensure the 'Papillon AI' chat interface feels conversational and integrated, not just an overlay.",
+    "Use 'framer-motion' for page transitions and list staggered entrances."
+  ]
+}
