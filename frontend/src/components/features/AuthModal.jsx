@@ -166,7 +166,7 @@ export function AuthModal({ isOpen, onClose }) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="pronote_url">URL Pronote de votre établissement</Label>
+                    <Label htmlFor="pronote_url">URL Pronote de votre établissement *</Label>
                     <Input
                       id="pronote_url"
                       value={formData.pronote_url}
@@ -176,7 +176,9 @@ export function AuthModal({ isOpen, onClose }) {
                       data-testid="pronote-url-input"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
+                      {formData.ent_id === 'direct' 
+                        ? "Entrez l'URL complète de votre espace élève Pronote"
+                        : "⚠️ L'URL Pronote reste obligatoire même avec un ENT. Connectez-vous à votre ENT dans un navigateur, accédez à Pronote, puis copiez l'URL."}
                     </p>
                   </div>
                 </>
