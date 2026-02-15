@@ -510,21 +510,22 @@ async def get_grades(current_user: dict = Depends(get_current_user)):
         
         grades = []
         try:
-            import EcoleDirectePy
-            raw_notes = EcoleDirectePy.notes()
-            if raw_notes:
-                for note in raw_notes:
-                    grades.append({
-                        "id": str(uuid.uuid4()),
-                        "value": note.get("valeur", ""),
-                        "out_of": note.get("noteSur", "20"),
-                        "coefficient": float(note.get("coef", 1)),
-                        "subject": note.get("libelleMatiere", "Matière"),
-                        "subject_color": "#F43F5E",
-                        "date": note.get("date", ""),
-                        "comment": note.get("devoir", ""),
-                        "class_average": note.get("moyenneClasse", ""),
-                    })
+            # Get grades from async ecoledirecte client
+            if hasattr(client, 'get_grades'):
+                raw_notes = await client.get_grades()
+                if raw_notes:
+                    for note in raw_notes:
+                        grades.append({
+                            "id": str(uuid.uuid4()),
+                            "value": str(note.get("valeur", "")) if note.get("valeur") else "",
+                            "out_of": str(note.get("noteSur", "20")),
+                            "coefficient": float(note.get("coef", 1)) if note.get("coef") else 1.0,
+                            "subject": note.get("libelleMatiere", "Matière"),
+                            "subject_color": "#F43F5E",
+                            "date": note.get("date", ""),
+                            "comment": note.get("devoir", ""),
+                            "class_average": str(note.get("moyenneClasse", "")) if note.get("moyenneClasse") else "",
+                        })
         except Exception as e:
             logging.error(f"Error fetching ED grades: {e}")
         
