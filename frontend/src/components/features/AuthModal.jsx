@@ -54,7 +54,8 @@ export function AuthModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (provider === 'pronote' && !formData.pronote_url) {
+    // URL only required for direct connection
+    if (provider === 'pronote' && requiresUrl && !formData.pronote_url) {
       toast.error('Veuillez entrer l\'URL de votre Pronote');
       return;
     }
@@ -66,8 +67,8 @@ export function AuthModal({ isOpen, onClose }) {
         provider,
         formData.username,
         formData.password,
-        provider === 'pronote' ? formData.pronote_url : null,
-        provider === 'pronote' ? formData.ent : 'none'
+        provider === 'pronote' && requiresUrl ? formData.pronote_url : null,
+        provider === 'pronote' ? formData.ent_id : null
       );
       
       setAuth(data.user, data.token);
