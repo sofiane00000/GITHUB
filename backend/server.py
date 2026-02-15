@@ -586,18 +586,24 @@ async def get_homework(current_user: dict = Depends(get_current_user)):
         return {"homework": homework, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        client, error = await get_ecoledirecte_client(current_user)
-        if error:
-            raise HTTPException(status_code=401, detail=error)
-        
         homework = []
         try:
-            # Get homework from async ecoledirecte client
-            if hasattr(client, 'get_homework'):
-                from datetime import date, timedelta
+            import EcoleDirectePy
+            from datetime import date, timedelta
+            
+            # First login to set the session
+            login_result = EcoleDirectePy.login(
+                current_user.get("username"),
+                current_user.get("password")
+            )
+            
+            if login_result and login_result.get('code') == 200:
                 today = date.today()
-                raw_hw = await client.get_homework()
-                if raw_hw:
+                raw_hw = EcoleDirectePy.cahierdetexte(
+                    today.strftime("%Y-%m-%d"),
+                    (today + timedelta(days=14)).strftime("%Y-%m-%d")
+                )
+                if raw_hw and isinstance(raw_hw, list):
                     for hw in raw_hw:
                         homework.append({
                             "id": str(uuid.uuid4()),
