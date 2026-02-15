@@ -29,8 +29,12 @@ export function AuthModal({ isOpen, onClose }) {
     username: '',
     password: '',
     pronote_url: '',
-    ent: 'none',
+    ent_id: 'direct',
   });
+  
+  // Check if selected ENT requires URL (only "direct" needs it)
+  const selectedEnt = ents.find(e => e.id === formData.ent_id);
+  const requiresUrl = selectedEnt?.requires_url || formData.ent_id === 'direct';
 
   useEffect(() => {
     if (isOpen) {
