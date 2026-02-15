@@ -192,14 +192,28 @@ def connect_pronote(username: str, password: str, ent_id: str, pronote_url: str 
                 username=username,
                 password=password
             )
+def connect_pronote(username: str, password: str, ent_id: str, pronote_url: str | None = None):
+    try:
+        ent_function = get_ent_function(ent_id)
+
+        if ent_id == "direct":
+            if not pronote_url:
+                return None, "URL Pronote requise pour connexion directe"
+            client = pronotepy.Client(pronote_url, username=username, password=password)
+
         elif ent_function:
-            # ENT connection - the ENT handles the URL
-            client = pronotepy.Client(
-                pronote_url if pronote_url else "",
-                username=username,
-                password=password,
-                ent=ent_function
-            )
+            if not pronote_url:
+                return None, "URL Pronote requise même via ENT (sinon URL vide)"
+            client = pronotepy.Client(pronote_url, username=username, password=password, ent=ent_function)
+
+        else:
+            return None, "ENT non reconnu"
+
+        return (client, None) if client.logged_in else (None, "Identifiants incorrects")
+    except Exception as e:
+        logging.exception("Pronote login error")
+        return None, str(e)
+
         else:
             return None, "ENT non reconnu"
         
