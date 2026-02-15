@@ -478,10 +478,7 @@ async def get_ecoledirecte_client(user: dict):
     if user.get("provider") != "ecoledirecte":
         return None, "Non connecté à EcoleDirecte"
     
-    loop = asyncio.get_event_loop()
-    client, error = await loop.run_in_executor(
-        None,
-        connect_ecoledirecte,
+    client, error = await connect_ecoledirecte(
         user.get("username"),
         user.get("password")
     )
