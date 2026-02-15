@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 import jwt
 import asyncio
 import pronotepy
+from pronotepy import ent as pronote_ent
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -26,7 +27,7 @@ db = client[os.environ['DB_NAME']]
 # JWT Config
 JWT_SECRET = os.environ.get('JWT_SECRET', 'papillon-secret-key-2024')
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
+JWT_EXPIRATION_DAYS = 30  # Long session for saved credentials
 
 # Claude API Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -37,47 +38,88 @@ security = HTTPBearer()
 
 # ==================== ENT CONFIGURATIONS ====================
 
-# Import ENTs dynamically to avoid import errors
-from pronotepy import ent as pronote_ent
+# All available ENTs with their display names and pronote base URLs
+ENT_LIST = [
+    # Connexion directe
+    {"id": "direct", "name": "Connexion directe (sans ENT)", "ent_func": None, "requires_url": True},
+    
+    # Île-de-France
+    {"id": "ile_de_france", "name": "Île-de-France (MonLycée.net)", "ent_func": "ile_de_france"},
+    {"id": "paris_classe_numerique", "name": "Paris Classe Numérique", "ent_func": "paris_classe_numerique"},
+    {"id": "ent77", "name": "ENT 77 (Seine-et-Marne)", "ent_func": "ent77"},
+    {"id": "ent_ecollege78", "name": "ENT 78 / e-Collège 78 (Yvelines)", "ent_func": "ent_ecollege78"},
+    {"id": "ent_essonne", "name": "ENT 91 (Essonne)", "ent_func": "ent_essonne"},
+    {"id": "ent_94", "name": "ENT 94 (Val-de-Marne)", "ent_func": "ent_94"},
+    {"id": "val_doise", "name": "ENT 95 (Val-d'Oise)", "ent_func": "val_doise"},
+    {"id": "cas_seinesaintdenis_edu", "name": "ENT 93 (Seine-Saint-Denis)", "ent_func": "cas_seinesaintdenis_edu"},
+    
+    # Grand Est
+    {"id": "monbureaunumerique", "name": "Mon Bureau Numérique (Grand Est)", "ent_func": "monbureaunumerique"},
+    {"id": "ac_reims", "name": "Académie de Reims", "ent_func": "ac_reims"},
+    
+    # Hauts-de-France
+    {"id": "ent_hdf", "name": "ENT Hauts-de-France (NEO)", "ent_func": "ent_hdf"},
+    {"id": "ent_somme", "name": "ENT Somme", "ent_func": "ent_somme"},
+    {"id": "extranet_colleges_somme", "name": "Extranet Collèges Somme", "ent_func": "extranet_colleges_somme"},
+    
+    # Auvergne-Rhône-Alpes
+    {"id": "ent_auvergnerhonealpe", "name": "ENT Auvergne-Rhône-Alpes", "ent_func": "ent_auvergnerhonealpe"},
+    {"id": "laclasse_lyon", "name": "laclasse.com (Lyon)", "ent_func": "laclasse_lyon"},
+    {"id": "laclasse_educonnect", "name": "laclasse.com (EduConnect)", "ent_func": "laclasse_educonnect"},
+    {"id": "cas_cybercolleges42_edu", "name": "Cybercolleges42 (Loire)", "ent_func": "cas_cybercolleges42_edu"},
+    
+    # Nouvelle-Aquitaine
+    {"id": "bordeaux", "name": "Académie de Bordeaux", "ent_func": "bordeaux"},
+    {"id": "ac_poitiers", "name": "Académie de Poitiers", "ent_func": "ac_poitiers"},
+    {"id": "lyceeconnecte_aquitaine", "name": "Lycée Connecté Aquitaine", "ent_func": "lyceeconnecte_aquitaine"},
+    {"id": "lyceeconnecte_edu", "name": "Lycée Connecté (EduConnect)", "ent_func": "lyceeconnecte_edu"},
+    
+    # Occitanie
+    {"id": "occitanie_montpellier", "name": "ENT Occitanie (Montpellier)", "ent_func": "occitanie_montpellier"},
+    {"id": "occitanie_montpellier_educonnect", "name": "ENT Occitanie Montpellier (EduConnect)", "ent_func": "occitanie_montpellier_educonnect"},
+    {"id": "occitanie_toulouse_edu", "name": "ENT Occitanie (Toulouse)", "ent_func": "occitanie_toulouse_edu"},
+    {"id": "ecollege_haute_garonne_edu", "name": "eCollège Haute-Garonne", "ent_func": "ecollege_haute_garonne_edu"},
+    
+    # Bretagne
+    {"id": "ac_rennes", "name": "Académie de Rennes (Toutatice)", "ent_func": "ac_rennes"},
+    
+    # Pays de la Loire
+    {"id": "ent_elyco", "name": "e-lyco (Pays de la Loire)", "ent_func": "ent_elyco"},
+    {"id": "ac_orleans_tours", "name": "Académie Orléans-Tours", "ent_func": "ac_orleans_tours"},
+    
+    # Normandie
+    {"id": "l_normandie", "name": "L'Educ de Normandie", "ent_func": "l_normandie"},
+    {"id": "cas_arsene76", "name": "Arsène 76 (Seine-Maritime)", "ent_func": "cas_arsene76"},
+    {"id": "cas_arsene76_edu", "name": "Arsène 76 (EduConnect)", "ent_func": "cas_arsene76_edu"},
+    {"id": "cas_ent27", "name": "ENT 27 (Eure)", "ent_func": "cas_ent27"},
+    
+    # PACA
+    {"id": "atrium_sud", "name": "Atrium PACA", "ent_func": "atrium_sud"},
+    {"id": "ent_var", "name": "ENT Var", "ent_func": "ent_var"},
+    {"id": "cas_agora06", "name": "Agora 06 (Alpes-Maritimes)", "ent_func": "cas_agora06"},
+    
+    # Bourgogne-Franche-Comté
+    {"id": "eclat_bfc", "name": "ECLAT-BFC", "ent_func": "eclat_bfc"},
+    
+    # Centre-Val de Loire
+    {"id": "ent_creuse", "name": "ENT Creuse", "ent_func": "ent_creuse"},
+    {"id": "ent_creuse_educonnect", "name": "ENT Creuse (EduConnect)", "ent_func": "ent_creuse_educonnect"},
+    
+    # Outre-mer
+    {"id": "ac_reunion", "name": "Académie de La Réunion", "ent_func": "ac_reunion"},
+    {"id": "ent_mayotte", "name": "ENT Mayotte", "ent_func": "ent_mayotte"},
+    {"id": "neoconnect_guadeloupe", "name": "Neoconnect Guadeloupe", "ent_func": "neoconnect_guadeloupe"},
+    
+    # Autres
+    {"id": "cas_kosmos", "name": "Kosmos (Multi-régions)", "ent_func": "cas_kosmos"},
+]
 
-# Build ENT dictionary dynamically
-def get_ent_function(name):
-    return getattr(pronote_ent, name, None)
-
-# Liste des ENT supportés pour Pronote
-PRONOTE_ENTS = {
-    "none": None,
-    "ac_reunion": get_ent_function("ac_reunion"),
-    "ac_reims": get_ent_function("ac_reims"),
-    "ac_rennes": get_ent_function("ac_rennes"),
-    "ac_orleans_tours": get_ent_function("ac_orleans_tours"),
-    "ac_poitiers": get_ent_function("ac_poitiers"),
-    "atrium_sud": get_ent_function("atrium_sud"),
-    "bordeaux": get_ent_function("bordeaux"),
-    "cas_agora06": get_ent_function("cas_agora06"),
-    "cas_arsene76": get_ent_function("cas_arsene76"),
-    "cas_kosmos": get_ent_function("cas_kosmos"),
-    "eclat_bfc": get_ent_function("eclat_bfc"),
-    "ent_94": get_ent_function("ent_94"),
-    "ent77": get_ent_function("ent77"),
-    "ent_auvergnerhonealpe": get_ent_function("ent_auvergnerhonealpe"),
-    "ent_creuse": get_ent_function("ent_creuse"),
-    "ent_elyco": get_ent_function("ent_elyco"),
-    "ent_essonne": get_ent_function("ent_essonne"),
-    "ent_hdf": get_ent_function("ent_hdf"),
-    "ent_mayotte": get_ent_function("ent_mayotte"),
-    "ent_somme": get_ent_function("ent_somme"),
-    "ent_var": get_ent_function("ent_var"),
-    "extranet_colleges_somme": get_ent_function("extranet_colleges_somme"),
-    "ile_de_france": get_ent_function("ile_de_france"),
-    "laclasse_educonnect": get_ent_function("laclasse_educonnect"),
-    "laclasse_lyon": get_ent_function("laclasse_lyon"),
-    "monbureaunumerique": get_ent_function("monbureaunumerique"),
-    "neoconnect_guadeloupe": get_ent_function("neoconnect_guadeloupe"),
-    "occitanie_montpellier": get_ent_function("occitanie_montpellier"),
-    "paris_classe_numerique": get_ent_function("paris_classe_numerique"),
-    "val_doise": get_ent_function("val_doise"),
-}
+def get_ent_function(ent_id: str):
+    """Get the ENT function from pronotepy"""
+    ent_config = next((e for e in ENT_LIST if e["id"] == ent_id), None)
+    if not ent_config or not ent_config.get("ent_func"):
+        return None
+    return getattr(pronote_ent, ent_config["ent_func"], None)
 
 # ==================== MODELS ====================
 
@@ -85,32 +127,27 @@ class ENTLoginRequest(BaseModel):
     provider: Literal["pronote", "ecoledirecte"]
     username: str
     password: str
-    pronote_url: Optional[str] = None  # Required for Pronote
-    ent: Optional[str] = "none"  # ENT identifier for Pronote
+    ent_id: Optional[str] = "direct"  # ENT identifier
+    pronote_url: Optional[str] = None  # Only needed for direct connection
 
-class UserSession(BaseModel):
+class SavedCredentials(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     provider: str
     username: str
-    display_name: str
+    password: str  # Encrypted in production
+    ent_id: Optional[str] = None
+    pronote_url: Optional[str] = None
+    display_name: Optional[str] = None
     class_name: Optional[str] = None
     school_name: Optional[str] = None
-    avatar_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_login: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     theme_settings: Optional[dict] = None
 
 class AIMessage(BaseModel):
     message: str
     context: Optional[str] = None
-
-class ChatMessage(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    role: Literal["user", "assistant"]
-    content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class QuizGenerateRequest(BaseModel):
     subject: str
@@ -125,53 +162,72 @@ def create_token(user_id: str, provider: str) -> str:
     payload = {
         "user_id": user_id,
         "provider": provider,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
+        "exp": datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRATION_DAYS)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        session = await db.sessions.find_one({"id": payload["user_id"]}, {"_id": 0})
-        if not session:
+        user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0})
+        if not user:
             raise HTTPException(status_code=401, detail="Session non trouvée")
-        return session
+        return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expirée, reconnectez-vous")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token invalide")
 
-# ==================== PRONOTE CLIENT HELPERS ====================
+# ==================== PRONOTE CLIENT ====================
 
-def get_pronote_client(username: str, password: str, pronote_url: str, ent: str = "none"):
-    """Create a Pronote client with the given credentials"""
+def connect_pronote(username: str, password: str, ent_id: str, pronote_url: str = None):
+    """Connect to Pronote with ENT or direct URL"""
     try:
-        ent_function = PRONOTE_ENTS.get(ent)
+        ent_function = get_ent_function(ent_id)
         
-        if ent_function:
-            client = pronotepy.Client(
-                pronote_url,
-                username=username,
-                password=password,
-                ent=ent_function
-            )
-        else:
+        if ent_id == "direct" and pronote_url:
+            # Direct connection with URL
             client = pronotepy.Client(
                 pronote_url,
                 username=username,
                 password=password
             )
+        elif ent_function:
+            # ENT connection - the ENT handles the URL
+            client = pronotepy.Client(
+                pronote_url if pronote_url else "",
+                username=username,
+                password=password,
+                ent=ent_function
+            )
+        else:
+            return None, "ENT non reconnu"
         
         if client.logged_in:
-            return client
+            return client, None
         else:
-            return None
+            return None, "Identifiants incorrects"
     except Exception as e:
         logging.error(f"Pronote login error: {e}")
-        return None
+        return None, str(e)
+
+# ==================== ECOLEDIRECTE CLIENT ====================
+
+def connect_ecoledirecte(username: str, password: str):
+    """Connect to EcoleDirecte"""
+    try:
+        import EcoleDirectePy
+        ed = EcoleDirectePy.login(username, password)
+        if ed:
+            return ed, None
+        return None, "Identifiants EcoleDirecte incorrects"
+    except Exception as e:
+        logging.error(f"EcoleDirecte login error: {e}")
+        return None, str(e)
+
+# ==================== DATA SERIALIZERS ====================
 
 def serialize_pronote_grade(grade) -> dict:
-    """Convert Pronote Grade to dict"""
     return {
         "id": str(uuid.uuid4()),
         "value": str(grade.grade) if grade.grade else None,
@@ -181,15 +237,12 @@ def serialize_pronote_grade(grade) -> dict:
         "subject_color": "#4F46E5",
         "date": grade.date.isoformat() if grade.date else None,
         "comment": grade.comment or "",
-        "is_bonus": grade.is_bonus if hasattr(grade, 'is_bonus') else False,
-        "is_optional": grade.is_optional if hasattr(grade, 'is_optional') else False,
         "class_average": str(grade.average) if hasattr(grade, 'average') and grade.average else None,
         "max": str(grade.max) if hasattr(grade, 'max') and grade.max else None,
         "min": str(grade.min) if hasattr(grade, 'min') and grade.min else None,
     }
 
 def serialize_pronote_homework(hw) -> dict:
-    """Convert Pronote Homework to dict"""
     return {
         "id": str(uuid.uuid4()),
         "subject": hw.subject.name if hw.subject else "Matière",
@@ -197,11 +250,9 @@ def serialize_pronote_homework(hw) -> dict:
         "description": hw.description or "",
         "date": hw.date.isoformat() if hw.date else None,
         "done": hw.done if hasattr(hw, 'done') else False,
-        "background_color": getattr(hw, 'background_color', None),
     }
 
 def serialize_pronote_lesson(lesson) -> dict:
-    """Convert Pronote Lesson to dict"""
     return {
         "id": str(uuid.uuid4()),
         "subject": lesson.subject.name if lesson.subject else "Cours",
@@ -212,47 +263,6 @@ def serialize_pronote_lesson(lesson) -> dict:
         "end": lesson.end.isoformat() if lesson.end else None,
         "canceled": lesson.canceled if hasattr(lesson, 'canceled') else False,
         "status": lesson.status if hasattr(lesson, 'status') else None,
-        "memo": lesson.memo if hasattr(lesson, 'memo') else None,
-    }
-
-def serialize_pronote_absence(absence) -> dict:
-    """Convert Pronote Absence to dict"""
-    return {
-        "id": str(uuid.uuid4()),
-        "from_date": absence.from_date.isoformat() if hasattr(absence, 'from_date') and absence.from_date else None,
-        "to_date": absence.to_date.isoformat() if hasattr(absence, 'to_date') and absence.to_date else None,
-        "justified": absence.justified if hasattr(absence, 'justified') else False,
-        "hours": absence.hours if hasattr(absence, 'hours') else 0,
-        "reasons": absence.reasons if hasattr(absence, 'reasons') else [],
-    }
-
-# ==================== ECOLEDIRECTE HELPERS ====================
-
-async def get_ecoledirecte_client(username: str, password: str):
-    """Create an EcoleDirecte client"""
-    try:
-        # Using ecoledirecteapi (simpler sync library)
-        from ecoledirecteapi import Bot
-        bot = Bot()
-        if bot.login(username, password):
-            return bot
-        return None
-    except Exception as e:
-        logging.error(f"EcoleDirecte login error: {e}")
-        return None
-
-def serialize_ed_grade(note) -> dict:
-    """Convert EcoleDirecte grade to dict"""
-    return {
-        "id": str(uuid.uuid4()),
-        "value": note.get('valeur', ''),
-        "out_of": note.get('noteSur', '20'),
-        "coefficient": float(note.get('coef', 1)),
-        "subject": note.get('libelleMatiere', 'Matière'),
-        "subject_color": "#F43F5E",
-        "date": note.get('date', ''),
-        "comment": note.get('depistementation', ''),
-        "class_average": note.get('moyenneClasse', ''),
     }
 
 # ==================== AI HELPERS ====================
@@ -270,109 +280,156 @@ Tu aides les élèves avec leurs cours, devoirs et révisions. Tu es amical et p
 {context}"""
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         
-        user_message = UserMessage(text=message)
-        response = await chat.send_message(user_message)
+        response = await chat.send_message(UserMessage(text=message))
         return response
     except Exception as e:
         logging.error(f"AI Error: {e}")
-        return f"Désolé, erreur IA: {str(e)}"
+        return f"Erreur IA: {str(e)}"
 
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/login")
 async def login(request: ENTLoginRequest):
-    """Login with Pronote or EcoleDirecte credentials"""
+    """Login with Pronote or EcoleDirecte credentials - saves for future auto-login"""
     
     if request.provider == "pronote":
-        if not request.pronote_url:
-            raise HTTPException(status_code=400, detail="URL Pronote requise")
+        # Check if direct connection needs URL
+        if request.ent_id == "direct" and not request.pronote_url:
+            raise HTTPException(status_code=400, detail="URL Pronote requise pour connexion directe")
         
-        # Run in thread to avoid blocking
+        # Connect to Pronote
         loop = asyncio.get_event_loop()
-        client = await loop.run_in_executor(
+        client, error = await loop.run_in_executor(
             None,
-            get_pronote_client,
+            connect_pronote,
             request.username,
             request.password,
-            request.pronote_url,
-            request.ent or "none"
+            request.ent_id,
+            request.pronote_url
         )
         
-        if not client:
-            raise HTTPException(status_code=401, detail="Identifiants Pronote incorrects ou URL invalide")
+        if error:
+            raise HTTPException(status_code=401, detail=f"Connexion Pronote échouée: {error}")
         
-        # Create session
-        session = UserSession(
-            provider="pronote",
-            username=request.username,
-            display_name=client.info.name if client.info else request.username,
-            class_name=client.info.class_name if client.info else None,
-            school_name=client.info.establishment if client.info else None,
-        )
+        # Get user info
+        display_name = client.info.name if client.info else request.username
+        class_name = client.info.class_name if client.info else None
+        school_name = client.info.establishment if client.info else None
         
-        # Store credentials encrypted for future API calls
-        session_dict = session.model_dump()
-        session_dict["created_at"] = session_dict["created_at"].isoformat()
-        session_dict["_credentials"] = {
-            "pronote_url": request.pronote_url,
+        # Save or update user credentials
+        user_id = str(uuid.uuid4())
+        existing = await db.users.find_one({
+            "provider": "pronote",
             "username": request.username,
-            "password": request.password,  # In production, encrypt this!
-            "ent": request.ent
-        }
+            "ent_id": request.ent_id
+        })
         
-        await db.sessions.update_one(
-            {"id": session.id},
-            {"$set": session_dict},
-            upsert=True
-        )
+        if existing:
+            user_id = existing["id"]
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {
+                    "password": request.password,
+                    "pronote_url": request.pronote_url,
+                    "display_name": display_name,
+                    "class_name": class_name,
+                    "school_name": school_name,
+                    "last_login": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        else:
+            user_data = {
+                "id": user_id,
+                "provider": "pronote",
+                "username": request.username,
+                "password": request.password,
+                "ent_id": request.ent_id,
+                "pronote_url": request.pronote_url,
+                "display_name": display_name,
+                "class_name": class_name,
+                "school_name": school_name,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_login": datetime.now(timezone.utc).isoformat(),
+                "theme_settings": {}
+            }
+            await db.users.insert_one(user_data)
         
-        token = create_token(session.id, "pronote")
+        token = create_token(user_id, "pronote")
         
         return {
             "token": token,
             "user": {
-                "id": session.id,
+                "id": user_id,
                 "provider": "pronote",
-                "display_name": session.display_name,
-                "class_name": session.class_name,
-                "school_name": session.school_name,
+                "display_name": display_name,
+                "class_name": class_name,
+                "school_name": school_name,
+                "ent_id": request.ent_id
             }
         }
     
     elif request.provider == "ecoledirecte":
-        # EcoleDirecte login
-        client = await get_ecoledirecte_client(request.username, request.password)
-        
-        if not client:
-            raise HTTPException(status_code=401, detail="Identifiants EcoleDirecte incorrects")
-        
-        session = UserSession(
-            provider="ecoledirecte",
-            username=request.username,
-            display_name=request.username,  # ED doesn't always expose name easily
+        # Connect to EcoleDirecte
+        loop = asyncio.get_event_loop()
+        ed_client, error = await loop.run_in_executor(
+            None,
+            connect_ecoledirecte,
+            request.username,
+            request.password
         )
         
-        session_dict = session.model_dump()
-        session_dict["created_at"] = session_dict["created_at"].isoformat()
-        session_dict["_credentials"] = {
-            "username": request.username,
-            "password": request.password,
-        }
+        if error:
+            raise HTTPException(status_code=401, detail=f"Connexion EcoleDirecte échouée: {error}")
         
-        await db.sessions.update_one(
-            {"id": session.id},
-            {"$set": session_dict},
-            upsert=True
-        )
+        # Get user info from ED
+        display_name = request.username
+        try:
+            if hasattr(ed_client, 'nom') and hasattr(ed_client, 'prenom'):
+                display_name = f"{ed_client.prenom} {ed_client.nom}"
+            elif hasattr(ed_client, 'eleves') and ed_client.eleves:
+                eleve = ed_client.eleves[0]
+                display_name = f"{eleve.get('prenom', '')} {eleve.get('nom', '')}"
+        except:
+            pass
         
-        token = create_token(session.id, "ecoledirecte")
+        # Save or update user
+        user_id = str(uuid.uuid4())
+        existing = await db.users.find_one({
+            "provider": "ecoledirecte",
+            "username": request.username
+        })
+        
+        if existing:
+            user_id = existing["id"]
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {
+                    "password": request.password,
+                    "display_name": display_name,
+                    "last_login": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        else:
+            user_data = {
+                "id": user_id,
+                "provider": "ecoledirecte",
+                "username": request.username,
+                "password": request.password,
+                "display_name": display_name,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_login": datetime.now(timezone.utc).isoformat(),
+                "theme_settings": {}
+            }
+            await db.users.insert_one(user_data)
+        
+        token = create_token(user_id, "ecoledirecte")
         
         return {
             "token": token,
             "user": {
-                "id": session.id,
+                "id": user_id,
                 "provider": "ecoledirecte",
-                "display_name": session.display_name,
+                "display_name": display_name,
             }
         }
     
@@ -380,45 +437,65 @@ async def login(request: ENTLoginRequest):
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    user_copy = {k: v for k, v in current_user.items() if not k.startswith("_")}
-    return user_copy
+    """Get current user info (without password)"""
+    return {
+        "id": current_user.get("id"),
+        "provider": current_user.get("provider"),
+        "display_name": current_user.get("display_name"),
+        "class_name": current_user.get("class_name"),
+        "school_name": current_user.get("school_name"),
+        "ent_id": current_user.get("ent_id"),
+        "theme_settings": current_user.get("theme_settings", {})
+    }
 
 @api_router.post("/auth/logout")
 async def logout(current_user: dict = Depends(get_current_user)):
-    await db.sessions.delete_one({"id": current_user["id"]})
+    """Logout - credentials remain saved for next login"""
     return {"message": "Déconnecté"}
 
 # ==================== PRONOTE DATA ROUTES ====================
 
-async def get_pronote_client_from_session(session: dict):
-    """Recreate Pronote client from stored session"""
-    creds = session.get("_credentials", {})
-    if not creds:
-        return None
+async def get_pronote_client(user: dict):
+    """Reconnect to Pronote using saved credentials"""
+    if user.get("provider") != "pronote":
+        return None, "Non connecté à Pronote"
     
     loop = asyncio.get_event_loop()
-    client = await loop.run_in_executor(
+    client, error = await loop.run_in_executor(
         None,
-        get_pronote_client,
-        creds.get("username"),
-        creds.get("password"),
-        creds.get("pronote_url"),
-        creds.get("ent", "none")
+        connect_pronote,
+        user.get("username"),
+        user.get("password"),
+        user.get("ent_id", "direct"),
+        user.get("pronote_url")
     )
-    return client
+    return client, error
+
+async def get_ecoledirecte_client(user: dict):
+    """Reconnect to EcoleDirecte using saved credentials"""
+    if user.get("provider") != "ecoledirecte":
+        return None, "Non connecté à EcoleDirecte"
+    
+    loop = asyncio.get_event_loop()
+    client, error = await loop.run_in_executor(
+        None,
+        connect_ecoledirecte,
+        user.get("username"),
+        user.get("password")
+    )
+    return client, error
 
 @api_router.get("/grades")
 async def get_grades(current_user: dict = Depends(get_current_user)):
     """Get grades from connected ENT"""
     
     if current_user.get("provider") == "pronote":
-        client = await get_pronote_client_from_session(current_user)
-        if not client:
-            raise HTTPException(status_code=401, detail="Session Pronote expirée, reconnectez-vous")
+        client, error = await get_pronote_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
         
         grades = []
         try:
-            # Get current period grades
             for period in client.periods:
                 for grade in period.grades:
                     grades.append(serialize_pronote_grade(grade))
@@ -428,18 +505,31 @@ async def get_grades(current_user: dict = Depends(get_current_user)):
         return {"grades": grades, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        creds = current_user.get("_credentials", {})
+        client, error = await get_ecoledirecte_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
+        
+        grades = []
         try:
-            from ecoledirecteapi import Bot
-            bot = Bot()
-            if bot.login(creds.get("username"), creds.get("password")):
-                raw_grades = bot.getNotes()
-                grades = [serialize_ed_grade(g) for g in raw_grades] if raw_grades else []
-                return {"grades": grades, "provider": "ecoledirecte"}
+            import EcoleDirectePy
+            raw_notes = EcoleDirectePy.notes()
+            if raw_notes:
+                for note in raw_notes:
+                    grades.append({
+                        "id": str(uuid.uuid4()),
+                        "value": note.get("valeur", ""),
+                        "out_of": note.get("noteSur", "20"),
+                        "coefficient": float(note.get("coef", 1)),
+                        "subject": note.get("libelleMatiere", "Matière"),
+                        "subject_color": "#F43F5E",
+                        "date": note.get("date", ""),
+                        "comment": note.get("devoir", ""),
+                        "class_average": note.get("moyenneClasse", ""),
+                    })
         except Exception as e:
             logging.error(f"Error fetching ED grades: {e}")
         
-        return {"grades": [], "provider": "ecoledirecte"}
+        return {"grades": grades, "provider": "ecoledirecte"}
     
     return {"grades": [], "provider": "unknown"}
 
@@ -448,13 +538,12 @@ async def get_homework(current_user: dict = Depends(get_current_user)):
     """Get homework from connected ENT"""
     
     if current_user.get("provider") == "pronote":
-        client = await get_pronote_client_from_session(current_user)
-        if not client:
-            raise HTTPException(status_code=401, detail="Session Pronote expirée")
+        client, error = await get_pronote_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
         
         homework = []
         try:
-            # Get homework for next 2 weeks
             from datetime import date, timedelta
             today = date.today()
             hw_list = client.homework(today, today + timedelta(days=14))
@@ -465,36 +554,38 @@ async def get_homework(current_user: dict = Depends(get_current_user)):
         return {"homework": homework, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        creds = current_user.get("_credentials", {})
+        client, error = await get_ecoledirecte_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
+        
+        homework = []
         try:
-            from ecoledirecteapi import Bot
-            bot = Bot()
-            if bot.login(creds.get("username"), creds.get("password")):
-                raw_hw = bot.getHomeworks()
-                homework = []
-                if raw_hw:
-                    for hw in raw_hw:
-                        homework.append({
-                            "id": str(uuid.uuid4()),
-                            "subject": hw.get("matiere", "Matière"),
-                            "description": hw.get("contenu", ""),
-                            "date": hw.get("date", ""),
-                            "done": hw.get("effectue", False),
-                        })
-                return {"homework": homework, "provider": "ecoledirecte"}
+            import EcoleDirectePy
+            from datetime import date, timedelta
+            today = date.today()
+            raw_hw = EcoleDirectePy.cahierdetexte(
+                today.strftime("%Y-%m-%d"),
+                (today + timedelta(days=14)).strftime("%Y-%m-%d")
+            )
+            if raw_hw:
+                for hw in raw_hw:
+                    homework.append({
+                        "id": str(uuid.uuid4()),
+                        "subject": hw.get("matiere", "Matière"),
+                        "description": hw.get("contenu", ""),
+                        "date": hw.get("date", ""),
+                        "done": hw.get("effectue", False),
+                    })
         except Exception as e:
             logging.error(f"Error fetching ED homework: {e}")
         
-        return {"homework": [], "provider": "ecoledirecte"}
+        return {"homework": homework, "provider": "ecoledirecte"}
     
     return {"homework": [], "provider": "unknown"}
 
 @api_router.get("/timetable")
-async def get_timetable(
-    date_str: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
-):
-    """Get timetable/schedule from connected ENT"""
+async def get_timetable(date_str: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get timetable from connected ENT"""
     from datetime import date, timedelta
     
     target_date = date.today()
@@ -505,13 +596,12 @@ async def get_timetable(
             pass
     
     if current_user.get("provider") == "pronote":
-        client = await get_pronote_client_from_session(current_user)
-        if not client:
-            raise HTTPException(status_code=401, detail="Session Pronote expirée")
+        client, error = await get_pronote_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
         
         lessons = []
         try:
-            # Get lessons for the week
             week_start = target_date - timedelta(days=target_date.weekday())
             week_end = week_start + timedelta(days=6)
             lesson_list = client.lessons(week_start, week_end)
@@ -522,116 +612,43 @@ async def get_timetable(
         return {"lessons": lessons, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        creds = current_user.get("_credentials", {})
+        client, error = await get_ecoledirecte_client(current_user)
+        if error:
+            raise HTTPException(status_code=401, detail=error)
+        
+        lessons = []
         try:
-            from ecoledirecteapi import Bot
-            bot = Bot()
-            if bot.login(creds.get("username"), creds.get("password")):
-                schedules = bot.getSchedules()
-                lessons = []
-                if schedules:
-                    for s in schedules:
-                        lessons.append({
-                            "id": str(uuid.uuid4()),
-                            "subject": s.get("matiere", "Cours"),
-                            "teacher": s.get("prof", ""),
-                            "room": s.get("salle", ""),
-                            "start": s.get("start_date", ""),
-                            "end": s.get("end_date", ""),
-                        })
-                return {"lessons": lessons, "provider": "ecoledirecte"}
+            import EcoleDirectePy
+            week_start = target_date - timedelta(days=target_date.weekday())
+            week_end = week_start + timedelta(days=6)
+            raw_edt = EcoleDirectePy.emploidutemps(
+                week_start.strftime("%Y-%m-%d"),
+                week_end.strftime("%Y-%m-%d")
+            )
+            if raw_edt:
+                for cours in raw_edt:
+                    lessons.append({
+                        "id": str(uuid.uuid4()),
+                        "subject": cours.get("matiere", "Cours"),
+                        "teacher": cours.get("prof", ""),
+                        "room": cours.get("salle", ""),
+                        "start": cours.get("start_date", ""),
+                        "end": cours.get("end_date", ""),
+                        "canceled": cours.get("isAnnule", False),
+                    })
         except Exception as e:
             logging.error(f"Error fetching ED schedule: {e}")
         
-        return {"lessons": [], "provider": "ecoledirecte"}
+        return {"lessons": lessons, "provider": "ecoledirecte"}
     
     return {"lessons": [], "provider": "unknown"}
-
-@api_router.get("/absences")
-async def get_absences(current_user: dict = Depends(get_current_user)):
-    """Get absences from connected ENT"""
-    
-    if current_user.get("provider") == "pronote":
-        client = await get_pronote_client_from_session(current_user)
-        if not client:
-            raise HTTPException(status_code=401, detail="Session Pronote expirée")
-        
-        absences = []
-        try:
-            for period in client.periods:
-                if hasattr(period, 'absences'):
-                    for absence in period.absences:
-                        absences.append(serialize_pronote_absence(absence))
-        except Exception as e:
-            logging.error(f"Error fetching absences: {e}")
-        
-        return {"absences": absences, "provider": "pronote"}
-    
-    return {"absences": [], "provider": current_user.get("provider", "unknown")}
-
-@api_router.get("/info")
-async def get_user_info(current_user: dict = Depends(get_current_user)):
-    """Get detailed user info from connected ENT"""
-    
-    if current_user.get("provider") == "pronote":
-        client = await get_pronote_client_from_session(current_user)
-        if not client:
-            raise HTTPException(status_code=401, detail="Session Pronote expirée")
-        
-        info = {}
-        try:
-            if client.info:
-                info = {
-                    "name": client.info.name,
-                    "class_name": client.info.class_name,
-                    "establishment": client.info.establishment,
-                    "phone": getattr(client.info, 'phone', None),
-                    "email": getattr(client.info, 'email', None),
-                    "address": getattr(client.info, 'address', None),
-                    "profile_picture": getattr(client.info, 'profile_picture', None),
-                }
-        except Exception as e:
-            logging.error(f"Error fetching info: {e}")
-        
-        return {"info": info, "provider": "pronote"}
-    
-    return {"info": {}, "provider": current_user.get("provider", "unknown")}
 
 # ==================== AI ROUTES ====================
 
 @api_router.post("/ai/chat")
 async def ai_chat(message: AIMessage, current_user: dict = Depends(get_current_user)):
-    """Chat with Papillon AI assistant"""
-    
-    # Save user message
-    user_msg = ChatMessage(
-        user_id=current_user["id"],
-        role="user",
-        content=message.message
-    )
-    user_msg_dict = user_msg.model_dump()
-    user_msg_dict["created_at"] = user_msg_dict["created_at"].isoformat()
-    await db.chat_messages.insert_one(user_msg_dict)
-    
-    # Get AI response
-    context = f"""
-L'utilisateur est {current_user.get('display_name', 'un élève')} connecté via {current_user.get('provider', 'ENT')}.
-Classe: {current_user.get('class_name', 'Non spécifiée')}
-Établissement: {current_user.get('school_name', 'Non spécifié')}
-{message.context or ''}
-"""
+    context = f"L'utilisateur est {current_user.get('display_name', 'un élève')}. {message.context or ''}"
     response = await get_ai_response(message.message, context, session_id=f"chat-{current_user['id']}")
-    
-    # Save AI message
-    ai_msg = ChatMessage(
-        user_id=current_user["id"],
-        role="assistant",
-        content=response
-    )
-    ai_msg_dict = ai_msg.model_dump()
-    ai_msg_dict["created_at"] = ai_msg_dict["created_at"].isoformat()
-    await db.chat_messages.insert_one(ai_msg_dict)
-    
     return {"response": response}
 
 @api_router.get("/ai/chat/history")
@@ -644,112 +661,51 @@ async def get_chat_history(limit: int = 50, current_user: dict = Depends(get_cur
 
 @api_router.post("/ai/quiz/generate")
 async def generate_quiz(request: QuizGenerateRequest, current_user: dict = Depends(get_current_user)):
-    """Generate a quiz using AI"""
-    
     prompt = f"""Génère un quiz de {request.num_questions} questions sur "{request.topic}" en {request.subject} pour un élève de {request.class_level}.
 Difficulté: {request.difficulty}
 
 Réponds UNIQUEMENT avec un JSON valide:
-{{
-    "title": "Titre du quiz",
-    "questions": [
-        {{
-            "question": "La question",
-            "options": ["A", "B", "C", "D"],
-            "correct_answer": 0,
-            "explanation": "Explication"
-        }}
-    ]
-}}"""
+{{"title": "Titre", "questions": [{{"question": "Q", "options": ["A","B","C","D"], "correct_answer": 0, "explanation": "E"}}]}}"""
     
     response = await get_ai_response(prompt, session_id=f"quiz-{current_user['id']}")
     
-    import json
-    import re
+    import json, re
     try:
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if json_match:
-            quiz_data = json.loads(json_match.group())
-            return quiz_data
+        match = re.search(r'\{[\s\S]*\}', response)
+        if match:
+            return json.loads(match.group())
     except:
         pass
     
-    raise HTTPException(status_code=500, detail="Erreur lors de la génération du quiz")
+    raise HTTPException(status_code=500, detail="Erreur génération quiz")
 
 @api_router.post("/ai/tutoring")
-async def ai_tutoring(
-    subject: str,
-    topic: str,
-    question: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """Get tutoring help from AI"""
-    
-    context = f"""Tu es un tuteur expert en {subject}. Le sujet est: {topic}
-Classe de l'élève: {current_user.get('class_name', 'Non spécifiée')}
-Explique de manière claire et pédagogue."""
-    
+async def ai_tutoring(subject: str, topic: str, question: str, current_user: dict = Depends(get_current_user)):
+    context = f"Tu es un tuteur expert en {subject}. Sujet: {topic}"
     response = await get_ai_response(question, context, session_id=f"tutor-{current_user['id']}")
     return {"response": response}
 
-# ==================== SETTINGS ROUTES ====================
+# ==================== SETTINGS ====================
 
 @api_router.put("/settings/theme")
 async def update_theme(theme_settings: dict, current_user: dict = Depends(get_current_user)):
-    await db.sessions.update_one(
-        {"id": current_user["id"]},
-        {"$set": {"theme_settings": theme_settings}}
-    )
+    await db.users.update_one({"id": current_user["id"]}, {"$set": {"theme_settings": theme_settings}})
     return {"message": "Thème mis à jour"}
-
-@api_router.get("/settings/theme")
-async def get_theme(current_user: dict = Depends(get_current_user)):
-    return {"theme_settings": current_user.get("theme_settings", {})}
 
 # ==================== ENT LIST ====================
 
 @api_router.get("/ents")
 async def get_available_ents():
-    """Get list of available ENT providers for Pronote"""
-    ents = [
-        {"id": "none", "name": "Connexion directe (sans ENT)", "region": ""},
-        {"id": "ile_de_france", "name": "Île-de-France", "region": "Île-de-France"},
-        {"id": "paris_classe_numerique", "name": "Paris Classe Numérique", "region": "Paris"},
-        {"id": "monbureaunumerique", "name": "Mon Bureau Numérique", "region": "Grand Est"},
-        {"id": "ent_hdf", "name": "ENT Hauts-de-France", "region": "Hauts-de-France"},
-        {"id": "ent_auvergnerhonealpes", "name": "ENT Auvergne-Rhône-Alpes", "region": "Auvergne-Rhône-Alpes"},
-        {"id": "ac_lyon", "name": "Académie de Lyon", "region": "Lyon"},
-        {"id": "ac_grenoble", "name": "Académie de Grenoble", "region": "Grenoble"},
-        {"id": "ac_rennes", "name": "Académie de Rennes", "region": "Bretagne"},
-        {"id": "ac_nantes", "name": "Académie de Nantes", "region": "Pays de la Loire"},
-        {"id": "ac_bordeaux", "name": "Académie de Bordeaux", "region": "Nouvelle-Aquitaine"},
-        {"id": "occitanie_toulouse", "name": "Occitanie (Toulouse)", "region": "Occitanie"},
-        {"id": "occitanie_montpellier", "name": "Occitanie (Montpellier)", "region": "Occitanie"},
-        {"id": "ac_lille", "name": "Académie de Lille", "region": "Nord"},
-        {"id": "ac_nancy_metz", "name": "Académie de Nancy-Metz", "region": "Lorraine"},
-        {"id": "ac_creteil", "name": "Académie de Créteil", "region": "Île-de-France"},
-        {"id": "ent77", "name": "ENT 77 (Seine-et-Marne)", "region": "Seine-et-Marne"},
-        {"id": "ent_94", "name": "ENT 94 (Val-de-Marne)", "region": "Val-de-Marne"},
-        {"id": "val_doise", "name": "Val d'Oise", "region": "Val-d'Oise"},
-        {"id": "ent_essonne", "name": "ENT Essonne", "region": "Essonne"},
-        {"id": "atrium_sud", "name": "Atrium PACA", "region": "PACA"},
-        {"id": "ent_elyco", "name": "e-lyco", "region": "Pays de la Loire"},
-        {"id": "eclat_bfc", "name": "ECLAT-BFC", "region": "Bourgogne-Franche-Comté"},
-        {"id": "ac_reunion", "name": "Académie de La Réunion", "region": "La Réunion"},
-    ]
-    return {"ents": ents}
+    """Get list of all available ENTs"""
+    return {"ents": [{"id": e["id"], "name": e["name"], "requires_url": e.get("requires_url", False)} for e in ENT_LIST]}
 
 # ==================== ROOT ====================
 
 @api_router.get("/")
 async def root():
-    return {
-        "message": "Bienvenue sur l'API Papillon",
-        "description": "Agrégateur ENT - Connectez-vous avec Pronote ou EcoleDirecte",
-        "version": "2.0.0"
-    }
+    return {"message": "Papillon API", "version": "2.0.0"}
 
-# Include router and middleware
+# Include router
 app.include_router(api_router)
 
 app.add_middleware(
@@ -760,12 +716,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+logging.basicConfig(level=logging.INFO)
