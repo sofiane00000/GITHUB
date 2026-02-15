@@ -14,7 +14,7 @@ class PapillonAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.user_data = {
-            "email": f"test_student_{datetime.now().strftime('%H%M%S')}@papillon.test",
+            "email": f"test_student_{datetime.now().strftime('%H%M%S')}@example.com",
             "password": "TestPass123!",
             "first_name": "Jean",
             "last_name": "Testeur",
