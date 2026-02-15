@@ -13,7 +13,6 @@ from datetime import datetime, timezone, timedelta
 import jwt
 import asyncio
 import pronotepy
-from pronotepy.ent import *
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
