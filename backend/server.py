@@ -579,8 +579,6 @@ async def get_homework(current_user: dict = Depends(get_current_user)):
             logging.error(f"Error fetching ED homework: {e}")
         
         return {"homework": homework, "provider": "ecoledirecte"}
-        
-        return {"homework": homework, "provider": "ecoledirecte"}
     
     return {"homework": [], "provider": "unknown"}
 
