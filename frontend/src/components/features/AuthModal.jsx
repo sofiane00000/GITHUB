@@ -54,8 +54,8 @@ export function AuthModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // URL only required for direct connection
-    if (provider === 'pronote' && requiresUrl && !formData.pronote_url) {
+    // URL always required for Pronote
+    if (provider === 'pronote' && !formData.pronote_url) {
       toast.error('Veuillez entrer l\'URL de votre Pronote');
       return;
     }
@@ -67,7 +67,7 @@ export function AuthModal({ isOpen, onClose }) {
         provider,
         formData.username,
         formData.password,
-        provider === 'pronote' && requiresUrl ? formData.pronote_url : null,
+        provider === 'pronote' ? formData.pronote_url : null,
         provider === 'pronote' ? formData.ent_id : null
       );
       
@@ -79,7 +79,7 @@ export function AuthModal({ isOpen, onClose }) {
       const message = error.response?.data?.detail || 'Identifiants incorrects';
       toast.error(message);
     } finally {
-      setIsLoading(false);
+      setIsLoading(true);
     }
   };
 
