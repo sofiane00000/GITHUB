@@ -533,16 +533,19 @@ async def get_grades(current_user: dict = Depends(get_current_user)):
         return {"grades": grades, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        client, error = await get_ecoledirecte_client(current_user)
-        if error:
-            raise HTTPException(status_code=401, detail=error)
-        
+        # For EcoleDirecte, we use EcoleDirectePy functions directly
         grades = []
         try:
-            # Get grades from async ecoledirecte client
-            if hasattr(client, 'get_grades'):
-                raw_notes = await client.get_grades()
-                if raw_notes:
+            import EcoleDirectePy
+            # First login to set the session
+            login_result = EcoleDirectePy.login(
+                current_user.get("username"),
+                current_user.get("password")
+            )
+            
+            if login_result and login_result.get('code') == 200:
+                raw_notes = EcoleDirectePy.notes()
+                if raw_notes and isinstance(raw_notes, list):
                     for note in raw_notes:
                         grades.append({
                             "id": str(uuid.uuid4()),
