@@ -34,13 +34,13 @@ api.interceptors.response.use(
 
 // Auth API - ENT Login
 export const authAPI = {
-  login: (provider, username, password, pronoteUrl = null, ent = 'none') => 
+  login: (provider, username, password, pronoteUrl = null, entId = null) => 
     api.post('/auth/login', { 
       provider, 
       username, 
       password,
       pronote_url: pronoteUrl,
-      ent
+      ent_id: entId
     }),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
