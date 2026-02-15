@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 class PapillonAPITester:
-    def __init__(self, base_url="https://interactive-platform-5.preview.emergentagent.com"):
+    def __init__(self, base_url="https://school-gateway-6.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.user_id = None
