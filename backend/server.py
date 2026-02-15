@@ -213,20 +213,63 @@ def connect_pronote(username: str, password: str, ent_id: str, pronote_url: str 
 
 # ==================== ECOLEDIRECTE CLIENT ====================
 
+import requests
+import urllib.parse
+
+ED_API_BASE = "https://api.ecoledirecte.com"
+ED_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+ED_API_VERSION = "4.75.0"
+
 def connect_ecoledirecte_sync(username: str, password: str):
-    """Connect to EcoleDirecte using EcoleDirectePy (sync)"""
+    """Connect to EcoleDirecte using direct API calls"""
     try:
-        import EcoleDirectePy
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": ED_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded"
+        })
         
-        result = EcoleDirectePy.login(username, password)
+        # Step 1: Get GTK cookie (required since March 2025)
+        gtk_response = session.get(f"{ED_API_BASE}/v3/login.awp?gtk=1&v={ED_API_VERSION}")
+        gtk_cookie = gtk_response.cookies.get("GTK", "")
         
-        if result and result.get('code') == 200:
+        # Step 2: Login request
+        login_data = {
+            "identifiant": username,
+            "motdepasse": password,
+            "isRelogin": False,
+            "uuid": ""
+        }
+        
+        headers = {
+            "User-Agent": ED_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        if gtk_cookie:
+            headers["X-Gtk"] = gtk_cookie
+        
+        # URL encode the JSON data
+        encoded_data = f"data={urllib.parse.quote(str(login_data).replace(\"'\", '\"').replace('False', 'false').replace('True', 'true'))}"
+        
+        response = session.post(
+            f"{ED_API_BASE}/v3/login.awp?v={ED_API_VERSION}",
+            data=encoded_data,
+            headers=headers
+        )
+        
+        result = response.json()
+        
+        if result.get('code') == 200:
             # Login successful
             return result, None
-        elif result and result.get('code') == 505:
+        elif result.get('code') == 250:
+            # QCM security challenge required
+            return None, "Connexion EcoleDirecte bloquée: vérification de sécurité requise. Connectez-vous d'abord sur ecoledirecte.com"
+        elif result.get('code') == 505:
             return None, "Identifiants EcoleDirecte incorrects"
         else:
             return None, result.get('message', 'Erreur de connexion EcoleDirecte')
+            
     except Exception as e:
         logging.error(f"EcoleDirecte login error: {e}")
         return None, str(e)
