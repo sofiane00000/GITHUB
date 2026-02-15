@@ -560,24 +560,25 @@ async def get_homework(current_user: dict = Depends(get_current_user)):
         
         homework = []
         try:
-            import EcoleDirectePy
-            from datetime import date, timedelta
-            today = date.today()
-            raw_hw = EcoleDirectePy.cahierdetexte(
-                today.strftime("%Y-%m-%d"),
-                (today + timedelta(days=14)).strftime("%Y-%m-%d")
-            )
-            if raw_hw:
-                for hw in raw_hw:
-                    homework.append({
-                        "id": str(uuid.uuid4()),
-                        "subject": hw.get("matiere", "Matière"),
-                        "description": hw.get("contenu", ""),
-                        "date": hw.get("date", ""),
-                        "done": hw.get("effectue", False),
-                    })
+            # Get homework from async ecoledirecte client
+            if hasattr(client, 'get_homework'):
+                from datetime import date, timedelta
+                today = date.today()
+                raw_hw = await client.get_homework()
+                if raw_hw:
+                    for hw in raw_hw:
+                        homework.append({
+                            "id": str(uuid.uuid4()),
+                            "subject": hw.get("matiere", "Matière"),
+                            "subject_color": "#F43F5E",
+                            "description": hw.get("contenu", "") or hw.get("aFaire", {}).get("contenu", ""),
+                            "date": hw.get("date", ""),
+                            "done": hw.get("effectue", False),
+                        })
         except Exception as e:
             logging.error(f"Error fetching ED homework: {e}")
+        
+        return {"homework": homework, "provider": "ecoledirecte"}
         
         return {"homework": homework, "provider": "ecoledirecte"}
     
