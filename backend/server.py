@@ -249,7 +249,9 @@ def connect_ecoledirecte_sync(username: str, password: str):
             headers["X-Gtk"] = gtk_cookie
         
         # URL encode the JSON data
-        encoded_data = f"data={urllib.parse.quote(str(login_data).replace(\"'\", '\"').replace('False', 'false').replace('True', 'true'))}"
+        import json
+        json_str = json.dumps(login_data)
+        encoded_data = f"data={urllib.parse.quote(json_str)}"
         
         response = session.post(
             f"{ED_API_BASE}/v3/login.awp?v={ED_API_VERSION}",
