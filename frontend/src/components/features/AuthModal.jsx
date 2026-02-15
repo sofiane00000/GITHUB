@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Loader2, Eye, EyeOff } from 'lucide-react';
+import { X, Sparkles, Loader2, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '../../store/useStore';
-import { authAPI, seedAPI } from '../../lib/api';
+import { authAPI, entAPI } from '../../lib/api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -14,64 +14,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 
-const roles = [
-  { value: 'student', label: 'Élève' },
-  { value: 'teacher', label: 'Professeur' },
-  { value: 'parent', label: 'Parent' },
-  { value: 'admin', label: 'Administrateur' },
-];
-
-const classLevels = [
-  { value: '6eme', label: '6ème' },
-  { value: '5eme', label: '5ème' },
-  { value: '4eme', label: '4ème' },
-  { value: '3eme', label: '3ème' },
-  { value: 'seconde', label: 'Seconde' },
-  { value: 'premiere', label: 'Première' },
-  { value: 'terminale', label: 'Terminale' },
-];
-
-export function AuthModal({ isOpen, onClose, mode, onModeChange }) {
+export function AuthModal({ isOpen, onClose }) {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [provider, setProvider] = useState('pronote');
+  const [ents, setEnts] = useState([]);
   
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
-    first_name: '',
-    last_name: '',
-    role: 'student',
-    class_id: 'class-6a',
+    pronote_url: '',
+    ent: 'none',
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchEnts();
+    }
+  }, [isOpen]);
+
+  const fetchEnts = async () => {
+    try {
+      const { data } = await entAPI.getList();
+      setEnts(data.ents || []);
+    } catch (error) {
+      console.error('Error fetching ENTs:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (provider === 'pronote' && !formData.pronote_url) {
+      toast.error('Veuillez entrer l\'URL de votre Pronote');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
-      // Seed data first time
-      try {
-        await seedAPI.seed();
-      } catch {}
-
-      if (mode === 'login') {
-        const { data } = await authAPI.login(formData.email, formData.password);
-        setAuth(data.user, data.token);
-        toast.success('Connexion réussie !');
-      } else {
-        const { data } = await authAPI.register(formData);
-        setAuth(data.user, data.token);
-        toast.success('Compte créé avec succès !');
-      }
+      const { data } = await authAPI.login(
+        provider,
+        formData.username,
+        formData.password,
+        provider === 'pronote' ? formData.pronote_url : null,
+        provider === 'pronote' ? formData.ent : 'none'
+      );
       
+      setAuth(data.user, data.token);
+      toast.success('Connexion réussie !');
       onClose();
       navigate('/dashboard');
     } catch (error) {
-      const message = error.response?.data?.detail || 'Une erreur est survenue';
+      const message = error.response?.data?.detail || 'Identifiants incorrects';
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -110,11 +110,9 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }) {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">
-                    {mode === 'login' ? 'Connexion' : 'Inscription'}
-                  </h2>
+                  <h2 className="text-xl font-bold">Connexion</h2>
                   <p className="text-sm text-muted-foreground">
-                    {mode === 'login' ? 'Accédez à votre espace' : 'Créez votre compte'}
+                    Connectez-vous avec votre ENT
                   </p>
                 </div>
               </div>
@@ -123,86 +121,71 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }) {
               </Button>
             </div>
 
+            {/* Provider Selection */}
+            <div className="px-6 pt-4">
+              <Tabs value={provider} onValueChange={setProvider}>
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="pronote" data-testid="pronote-tab">
+                    <img src="https://www.index-education.com/contenu/img/commun/logo-pronote-menu.png" alt="Pronote" className="h-5 mr-2" />
+                    Pronote
+                  </TabsTrigger>
+                  <TabsTrigger value="ecoledirecte" data-testid="ecoledirecte-tab">
+                    EcoleDirecte
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {mode === 'register' && (
+              {provider === 'pronote' && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name">Prénom</Label>
-                      <Input
-                        id="first_name"
-                        value={formData.first_name}
-                        onChange={(e) => handleChange('first_name', e.target.value)}
-                        placeholder="Jean"
-                        required
-                        data-testid="first-name-input"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name">Nom</Label>
-                      <Input
-                        id="last_name"
-                        value={formData.last_name}
-                        onChange={(e) => handleChange('last_name', e.target.value)}
-                        placeholder="Dupont"
-                        required
-                        data-testid="last-name-input"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pronote_url">URL Pronote de votre établissement</Label>
+                    <Input
+                      id="pronote_url"
+                      value={formData.pronote_url}
+                      onChange={(e) => handleChange('pronote_url', e.target.value)}
+                      placeholder="https://0000000a.index-education.net/pronote/eleve.html"
+                      required
+                      data-testid="pronote-url-input"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="role">Je suis</Label>
+                    <Label htmlFor="ent">ENT / Académie</Label>
                     <Select
-                      value={formData.role}
-                      onValueChange={(value) => handleChange('role', value)}
+                      value={formData.ent}
+                      onValueChange={(value) => handleChange('ent', value)}
                     >
-                      <SelectTrigger data-testid="role-select">
-                        <SelectValue placeholder="Sélectionnez votre rôle" />
+                      <SelectTrigger data-testid="ent-select">
+                        <SelectValue placeholder="Sélectionnez votre ENT" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
+                      <SelectContent className="max-h-60">
+                        {ents.map((ent) => (
+                          <SelectItem key={ent.id} value={ent.id}>
+                            {ent.name}
+                            {ent.region && <span className="text-muted-foreground ml-2">({ent.region})</span>}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {formData.role === 'student' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="class">Ma classe</Label>
-                      <Select
-                        value={formData.class_id}
-                        onValueChange={(value) => handleChange('class_id', value)}
-                      >
-                        <SelectTrigger data-testid="class-select">
-                          <SelectValue placeholder="Sélectionnez votre classe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="class-6a">6ème A</SelectItem>
-                          <SelectItem value="class-5a">5ème A</SelectItem>
-                          <SelectItem value="class-4a">4ème A</SelectItem>
-                          <SelectItem value="class-3a">3ème A</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Identifiant</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
-                  placeholder="jean.dupont@ecole.fr"
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => handleChange('username', e.target.value)}
+                  placeholder="Votre identifiant ENT"
                   required
-                  data-testid="email-input"
+                  data-testid="username-input"
                 />
               </div>
 
@@ -229,34 +212,29 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }) {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                disabled={isLoading}
-                data-testid="submit-auth-btn"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : mode === 'login' ? (
-                  'Se connecter'
-                ) : (
-                  "S'inscrire"
-                )}
-              </Button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => onModeChange(mode === 'login' ? 'register' : 'login')}
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  className="w-full rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                  disabled={isLoading}
+                  data-testid="submit-login-btn"
                 >
-                  {mode === 'login' ? (
-                    <>Pas de compte ? <span className="font-medium text-primary">S'inscrire</span></>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Connexion en cours...
+                    </>
                   ) : (
-                    <>Déjà un compte ? <span className="font-medium text-primary">Se connecter</span></>
+                    'Se connecter'
                   )}
-                </button>
+                </Button>
               </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Vos identifiants sont envoyés directement à {provider === 'pronote' ? 'Pronote' : 'EcoleDirecte'}.
+                <br />
+                Papillon ne stocke pas vos mots de passe en clair.
+              </p>
             </form>
           </motion.div>
         </div>

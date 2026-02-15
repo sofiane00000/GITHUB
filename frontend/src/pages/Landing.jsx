@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Sparkles, Calendar, GraduationCap, MessageSquare, 
-  Brain, BookOpen, Users, ChevronRight, Star
+  Sparkles, Calendar, GraduationCap, BookOpen, 
+  Brain, CheckCircle, ChevronRight, Star, Zap,
+  Shield, Clock, Smartphone
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { AuthModal } from '../components/features/AuthModal';
@@ -11,58 +12,65 @@ import { AuthModal } from '../components/features/AuthModal';
 const features = [
   {
     icon: Calendar,
-    title: 'Emploi du temps',
-    description: 'Consultez votre planning interactif en temps réel',
+    title: 'Emploi du temps unifié',
+    description: 'Consultez votre planning depuis Pronote ou EcoleDirecte en un seul endroit',
     color: 'from-blue-500 to-cyan-500',
   },
   {
     icon: GraduationCap,
-    title: 'Notes & Bulletins',
-    description: 'Suivez vos résultats avec des graphiques détaillés',
+    title: 'Notes en temps réel',
+    description: 'Toutes vos notes avec moyennes et graphiques détaillés',
     color: 'from-purple-500 to-pink-500',
+  },
+  {
+    icon: BookOpen,
+    title: 'Devoirs organisés',
+    description: 'Vos devoirs triés par date avec rappels intelligents',
+    color: 'from-orange-500 to-red-500',
   },
   {
     icon: Brain,
     title: 'Assistant IA',
-    description: 'Papillon vous aide avec vos devoirs et révisions',
-    color: 'from-orange-500 to-red-500',
-  },
-  {
-    icon: BookOpen,
-    title: 'Ressources',
-    description: 'Accédez à tous vos cours et supports pédagogiques',
+    description: 'Papillon vous aide pour vos révisions et exercices',
     color: 'from-green-500 to-emerald-500',
   },
   {
-    icon: MessageSquare,
-    title: 'Messagerie',
-    description: 'Communiquez avec vos professeurs et camarades',
-    color: 'from-indigo-500 to-violet-500',
+    icon: Zap,
+    title: 'Interface moderne',
+    description: 'Design épuré et personnalisable à 100%',
+    color: 'from-yellow-500 to-orange-500',
   },
   {
-    icon: Users,
-    title: 'Forum',
-    description: 'Entraidez-vous sur le forum de discussion',
-    color: 'from-rose-500 to-pink-500',
+    icon: Shield,
+    title: 'Sécurisé',
+    description: 'Connexion directe à votre ENT, aucune donnée stockée',
+    color: 'from-indigo-500 to-violet-500',
+  },
+];
+
+const providers = [
+  {
+    name: 'Pronote',
+    logo: 'https://www.index-education.com/contenu/img/commun/logo-pronote-menu.png',
+    description: 'Index-Education',
+  },
+  {
+    name: 'EcoleDirecte',
+    logo: 'https://www.ecoledirecte.com/favicon.ico',
+    description: 'Aplim',
   },
 ];
 
 const stats = [
-  { value: '10K+', label: 'Élèves actifs' },
-  { value: '500+', label: 'Professeurs' },
-  { value: '95%', label: 'Satisfaction' },
-  { value: '24/7', label: 'Support IA' },
+  { value: 'Pronote', label: 'Compatible' },
+  { value: 'EcoleDirecte', label: 'Compatible' },
+  { value: 'IA', label: 'Assistant intégré' },
+  { value: '100%', label: 'Gratuit' },
 ];
 
 export function Landing() {
   const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
   const navigate = useNavigate();
-
-  const openAuth = (mode) => {
-    setAuthMode(mode);
-    setShowAuth(true);
-  };
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
@@ -79,22 +87,13 @@ export function Landing() {
           <span className="text-xl font-bold gradient-text">Papillon</span>
         </div>
         
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            onClick={() => openAuth('login')}
-            data-testid="login-btn"
-          >
-            Connexion
-          </Button>
-          <Button 
-            onClick={() => openAuth('register')}
-            className="rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-            data-testid="register-btn"
-          >
-            S'inscrire
-          </Button>
-        </div>
+        <Button 
+          onClick={() => setShowAuth(true)}
+          className="rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+          data-testid="login-btn"
+        >
+          Se connecter
+        </Button>
       </nav>
 
       {/* Hero Section */}
@@ -107,37 +106,42 @@ export function Landing() {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6">
               <Star className="w-4 h-4 fill-current" />
-              <span className="text-sm font-medium">L'ENT nouvelle génération</span>
+              <span className="text-sm font-medium">Agrégateur ENT nouvelle génération</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              L'école qui vous donne{' '}
-              <span className="gradient-text">des ailes</span>
+              Tous vos ENT{' '}
+              <span className="gradient-text">réunis</span>
             </h1>
             
             <p className="text-lg text-muted-foreground mb-8 max-w-lg">
-              Papillon réunit tous les outils dont vous avez besoin : emploi du temps, notes, 
-              devoirs, messagerie et un assistant IA pour vous accompagner au quotidien.
+              Connectez-vous avec vos identifiants <strong>Pronote</strong> ou <strong>EcoleDirecte</strong> 
+              et accédez à toutes vos données dans une interface moderne et intuitive.
             </p>
 
             <div className="flex flex-wrap gap-4">
               <Button 
                 size="lg"
-                onClick={() => openAuth('register')}
+                onClick={() => setShowAuth(true)}
                 className="rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 px-8 active:scale-95 transition-transform"
                 data-testid="get-started-btn"
               >
-                Commencer gratuitement
+                Se connecter
                 <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
-              <Button 
-                size="lg"
-                variant="outline"
-                onClick={() => openAuth('login')}
-                className="rounded-full px-8"
-              >
-                Démo
-              </Button>
+            </div>
+
+            {/* Supported Providers */}
+            <div className="mt-8 flex items-center gap-6">
+              <span className="text-sm text-muted-foreground">Compatible avec:</span>
+              <div className="flex items-center gap-4">
+                {providers.map((p) => (
+                  <div key={p.name} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
+                    <img src={p.logo} alt={p.name} className="w-5 h-5 object-contain" />
+                    <span className="text-sm font-medium">{p.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
 
@@ -147,13 +151,47 @@ export function Landing() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="https://images.unsplash.com/photo-1767102060241-130cb9260718?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
-                alt="Étudiants utilisant Papillon"
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold">Tableau de bord</h3>
+                    <p className="text-sm text-muted-foreground">Toutes vos infos en un coup d'œil</p>
+                  </div>
+                </div>
+                
+                {/* Mock Dashboard Preview */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <p className="text-xs text-muted-foreground">Moyenne</p>
+                      <p className="text-xl font-bold text-primary">15.8</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-secondary/10">
+                      <p className="text-xs text-muted-foreground">Devoirs</p>
+                      <p className="text-xl font-bold text-secondary">3</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-accent/10">
+                      <p className="text-xs text-muted-foreground">Cours</p>
+                      <p className="text-xl font-bold text-accent">5</p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 rounded-xl bg-muted/50">
+                    <p className="text-sm font-medium mb-2">Prochain cours</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-10 rounded-full bg-primary" />
+                      <div>
+                        <p className="font-medium">Mathématiques</p>
+                        <p className="text-xs text-muted-foreground">08:00 - Salle 101</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Floating cards */}
@@ -163,12 +201,10 @@ export function Landing() {
               className="absolute -left-8 top-1/4 glass rounded-xl p-4 shadow-xl"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-green-500" />
-                </div>
+                <CheckCircle className="w-8 h-8 text-green-500" />
                 <div>
-                  <p className="font-semibold">Moyenne générale</p>
-                  <p className="text-2xl font-bold text-green-500">15.8/20</p>
+                  <p className="font-semibold text-sm">Données sécurisées</p>
+                  <p className="text-xs text-muted-foreground">Connexion directe ENT</p>
                 </div>
               </div>
             </motion.div>
@@ -179,12 +215,10 @@ export function Landing() {
               className="absolute -right-4 bottom-1/4 glass rounded-xl p-4 shadow-xl"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-primary" />
-                </div>
+                <Brain className="w-8 h-8 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Assistant IA</p>
-                  <p className="font-medium">Prêt à aider !</p>
+                  <p className="text-sm font-medium">Assistant IA</p>
+                  <p className="text-xs text-muted-foreground">Aide aux devoirs</p>
                 </div>
               </div>
             </motion.div>
@@ -204,7 +238,7 @@ export function Landing() {
                 transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <p className="text-3xl md:text-4xl font-bold gradient-text">{stat.value}</p>
+                <p className="text-2xl md:text-3xl font-bold gradient-text">{stat.value}</p>
                 <p className="text-muted-foreground">{stat.label}</p>
               </motion.div>
             ))}
@@ -216,11 +250,11 @@ export function Landing() {
       <section className="relative z-10 py-20 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Tout ce dont vous avez besoin
+            Pourquoi choisir Papillon ?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Une plateforme complète pour gérer votre vie scolaire avec des fonctionnalités 
-            avancées et une interface moderne.
+            Une application qui réunit le meilleur de vos ENT dans une interface moderne 
+            avec des fonctionnalités exclusives.
           </p>
         </div>
 
@@ -243,6 +277,39 @@ export function Landing() {
         </div>
       </section>
 
+      {/* How it works */}
+      <section className="relative z-10 py-20 px-6 bg-card/50">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">
+            Comment ça marche ?
+          </h2>
+          
+          <div className="space-y-8">
+            {[
+              { step: '1', title: 'Choisissez votre ENT', desc: 'Pronote ou EcoleDirecte' },
+              { step: '2', title: 'Entrez vos identifiants', desc: 'Les mêmes que sur votre ENT' },
+              { step: '3', title: 'Profitez !', desc: 'Accédez à toutes vos données' },
+            ].map((item, i) => (
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.2 }}
+                className="flex items-center gap-6"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                  {item.step}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">{item.title}</h3>
+                  <p className="text-muted-foreground">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="relative z-10 py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
@@ -255,19 +322,19 @@ export function Landing() {
               <Sparkles className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Prêt à décoller ?
+              Prêt à simplifier votre vie scolaire ?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-lg mx-auto">
-              Rejoignez des milliers d'élèves et de professeurs qui utilisent déjà Papillon 
-              pour transformer leur expérience scolaire.
+              Connectez-vous avec vos identifiants ENT et découvrez une nouvelle façon 
+              de gérer votre scolarité.
             </p>
             <Button 
               size="lg"
-              onClick={() => openAuth('register')}
+              onClick={() => setShowAuth(true)}
               className="rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 px-12 text-lg active:scale-95 transition-transform"
-              data-testid="cta-register-btn"
+              data-testid="cta-login-btn"
             >
-              Créer mon compte
+              Se connecter maintenant
               <ChevronRight className="w-5 h-5 ml-2" />
             </Button>
           </motion.div>
@@ -281,10 +348,10 @@ export function Landing() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold">Papillon ENT</span>
+            <span className="font-semibold">Papillon</span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            © 2024 Papillon. Tous droits réservés.
+          <p className="text-sm text-muted-foreground text-center">
+            Application non officielle. Pronote® et EcoleDirecte® sont des marques déposées.
           </p>
         </div>
       </footer>
@@ -293,8 +360,6 @@ export function Landing() {
       <AuthModal 
         isOpen={showAuth} 
         onClose={() => setShowAuth(false)} 
-        mode={authMode}
-        onModeChange={setAuthMode}
       />
     </div>
   );

@@ -26,114 +26,69 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
 );
 
-// Auth API
+// Auth API - ENT Login
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (data) => api.post('/auth/register', data),
+  login: (provider, username, password, pronoteUrl = null, ent = 'none') => 
+    api.post('/auth/login', { 
+      provider, 
+      username, 
+      password,
+      pronote_url: pronoteUrl,
+      ent
+    }),
   getMe: () => api.get('/auth/me'),
-  updateProfile: (data) => api.put('/auth/profile', data),
+  logout: () => api.post('/auth/logout'),
 };
 
-// Classes API
-export const classesAPI = {
-  getAll: () => api.get('/classes'),
-  create: (data) => api.post('/classes', data),
-};
-
-// Subjects API
-export const subjectsAPI = {
-  getAll: () => api.get('/subjects'),
-  create: (data) => api.post('/subjects', data),
+// ENT List
+export const entAPI = {
+  getList: () => api.get('/ents'),
 };
 
 // Grades API
 export const gradesAPI = {
-  getAll: (params) => api.get('/grades', { params }),
-  create: (data) => api.post('/grades', data),
+  getAll: () => api.get('/grades'),
 };
 
 // Homework API
 export const homeworkAPI = {
-  getAll: (params) => api.get('/homework', { params }),
-  create: (data) => api.post('/homework', data),
-  submit: (id, content) => api.post(`/homework/${id}/submit`, null, { params: { content } }),
+  getAll: () => api.get('/homework'),
 };
 
 // Timetable API
 export const timetableAPI = {
-  get: (params) => api.get('/timetable', { params }),
-  create: (data) => api.post('/timetable', data),
+  get: (date = null) => api.get('/timetable', { params: { date_str: date } }),
 };
 
-// Messages API
-export const messagesAPI = {
-  getAll: () => api.get('/messages'),
-  send: (data) => api.post('/messages', data),
-  markRead: (id) => api.put(`/messages/${id}/read`),
+// Absences API
+export const absencesAPI = {
+  getAll: () => api.get('/absences'),
 };
 
-// Resources API
-export const resourcesAPI = {
-  getAll: (params) => api.get('/resources', { params }),
-  create: (data) => api.post('/resources', data),
-};
-
-// Quizzes API
-export const quizzesAPI = {
-  getAll: (params) => api.get('/quizzes', { params }),
-  generate: (data) => api.post('/quizzes/generate', data),
-  submit: (id, answers) => api.post(`/quizzes/${id}/submit`, answers),
-};
-
-// Forum API
-export const forumAPI = {
-  getAll: (params) => api.get('/forum', { params }),
-  create: (title, content, classId, subjectId) => 
-    api.post('/forum', null, { params: { title, content, class_id: classId, subject_id: subjectId } }),
-  reply: (postId, content) => api.post(`/forum/${postId}/reply`, null, { params: { content } }),
-};
-
-// Notifications API
-export const notificationsAPI = {
-  getAll: () => api.get('/notifications'),
-  markRead: (id) => api.put(`/notifications/${id}/read`),
-  markAllRead: () => api.put('/notifications/read-all'),
+// User Info API
+export const userInfoAPI = {
+  get: () => api.get('/info'),
 };
 
 // AI API
 export const aiAPI = {
   chat: (message, context) => api.post('/ai/chat', { message, context }),
   getChatHistory: (limit = 50) => api.get('/ai/chat/history', { params: { limit } }),
-  tutoring: (subject, topic, question, classLevel) => 
-    api.post('/ai/tutoring', null, { params: { subject, topic, question, class_level: classLevel } }),
+  generateQuiz: (data) => api.post('/ai/quiz/generate', data),
+  tutoring: (subject, topic, question) => 
+    api.post('/ai/tutoring', null, { params: { subject, topic, question } }),
 };
 
-// Curriculum API
-export const curriculumAPI = {
-  getAll: (classLevel) => api.get('/curriculum', { params: { class_level: classLevel } }),
-  getTopics: (classLevel, subject) => api.get(`/curriculum/${classLevel}/${subject}`),
-};
-
-// Stats API
-export const statsAPI = {
-  getStudent: () => api.get('/stats/student'),
-  getClass: (classId) => api.get(`/stats/class/${classId}`),
-};
-
-// Users API
-export const usersAPI = {
-  getAll: (params) => api.get('/users', { params }),
-};
-
-// Seed data
-export const seedAPI = {
-  seed: () => api.post('/seed'),
+// Settings API
+export const settingsAPI = {
+  getTheme: () => api.get('/settings/theme'),
+  updateTheme: (settings) => api.put('/settings/theme', settings),
 };
 
 export default api;
