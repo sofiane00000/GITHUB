@@ -21,6 +21,7 @@ dnspython==2.8.0
 ecdsa==0.19.1
 ecoledirecte==0.2.3
 ecoledirecteapi==0.1
+EcoleDirectePy==0.0.5
 email-validator==2.3.0
 emergentintegrations==0.1.0
 fastapi==0.110.1
