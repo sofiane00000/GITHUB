@@ -146,25 +146,10 @@ export function AuthModal({ isOpen, onClose }) {
               {provider === 'pronote' && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="pronote_url">URL Pronote de votre établissement</Label>
-                    <Input
-                      id="pronote_url"
-                      value={formData.pronote_url}
-                      onChange={(e) => handleChange('pronote_url', e.target.value)}
-                      placeholder="https://0000000a.index-education.net/pronote/eleve.html"
-                      required
-                      data-testid="pronote-url-input"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="ent">ENT / Académie</Label>
                     <Select
-                      value={formData.ent}
-                      onValueChange={(value) => handleChange('ent', value)}
+                      value={formData.ent_id}
+                      onValueChange={(value) => handleChange('ent_id', value)}
                     >
                       <SelectTrigger data-testid="ent-select">
                         <SelectValue placeholder="Sélectionnez votre ENT" />
@@ -173,12 +158,31 @@ export function AuthModal({ isOpen, onClose }) {
                         {ents.map((ent) => (
                           <SelectItem key={ent.id} value={ent.id}>
                             {ent.name}
-                            {ent.region && <span className="text-muted-foreground ml-2">({ent.region})</span>}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Choisissez votre académie ou ENT régional
+                    </p>
                   </div>
+
+                  {requiresUrl && (
+                    <div className="space-y-2">
+                      <Label htmlFor="pronote_url">URL Pronote de votre établissement</Label>
+                      <Input
+                        id="pronote_url"
+                        value={formData.pronote_url}
+                        onChange={(e) => handleChange('pronote_url', e.target.value)}
+                        placeholder="https://0000000a.index-education.net/pronote/eleve.html"
+                        required={requiresUrl}
+                        data-testid="pronote-url-input"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Trouvez l'URL dans votre navigateur quand vous êtes sur Pronote
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
