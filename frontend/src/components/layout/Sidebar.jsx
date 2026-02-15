@@ -1,66 +1,37 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Calendar, GraduationCap, MessageSquare, 
-  BookOpen, FileText, Users, Brain, Settings, LogOut,
-  ChevronLeft, ChevronRight, Sparkles, Trophy, Bell
+  LayoutDashboard, Calendar, GraduationCap, 
+  BookOpen, Brain, Settings, LogOut,
+  ChevronLeft, ChevronRight, Sparkles
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '../../store/useStore';
+import { authAPI } from '../../lib/api';
 import { Button } from '../ui/button';
-import { Progress } from '../ui/progress';
+import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
+import { toast } from 'sonner';
 
-const navItems = {
-  student: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Calendar, label: 'Emploi du temps', path: '/timetable' },
-    { icon: GraduationCap, label: 'Notes', path: '/grades' },
-    { icon: BookOpen, label: 'Devoirs', path: '/homework' },
-    { icon: FileText, label: 'Ressources', path: '/resources' },
-    { icon: Brain, label: 'Quiz & Soutien', path: '/tutoring' },
-    { icon: MessageSquare, label: 'Messagerie', path: '/messages' },
-    { icon: Users, label: 'Forum', path: '/forum' },
-  ],
-  teacher: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Calendar, label: 'Emploi du temps', path: '/timetable' },
-    { icon: GraduationCap, label: 'Notes', path: '/grades' },
-    { icon: BookOpen, label: 'Devoirs', path: '/homework' },
-    { icon: FileText, label: 'Ressources', path: '/resources' },
-    { icon: Brain, label: 'Générateur Quiz', path: '/tutoring' },
-    { icon: MessageSquare, label: 'Messagerie', path: '/messages' },
-    { icon: Users, label: 'Forum', path: '/forum' },
-  ],
-  parent: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Calendar, label: 'Emploi du temps', path: '/timetable' },
-    { icon: GraduationCap, label: 'Notes', path: '/grades' },
-    { icon: BookOpen, label: 'Devoirs', path: '/homework' },
-    { icon: MessageSquare, label: 'Messagerie', path: '/messages' },
-  ],
-  admin: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
-    { icon: Calendar, label: 'Emploi du temps', path: '/timetable' },
-    { icon: GraduationCap, label: 'Notes', path: '/grades' },
-    { icon: BookOpen, label: 'Devoirs', path: '/homework' },
-    { icon: FileText, label: 'Ressources', path: '/resources' },
-    { icon: MessageSquare, label: 'Messagerie', path: '/messages' },
-  ],
-};
+const navItems = [
+  { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
+  { icon: Calendar, label: 'Emploi du temps', path: '/timetable' },
+  { icon: GraduationCap, label: 'Notes', path: '/grades' },
+  { icon: BookOpen, label: 'Devoirs', path: '/homework' },
+  { icon: Brain, label: 'Quiz & Aide IA', path: '/tutoring' },
+];
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
   const { sidebarOpen, toggleSidebar, toggleAIChat } = useUIStore();
   const navigate = useNavigate();
-  
-  const items = navItems[user?.role] || navItems.student;
-  const xpProgress = ((user?.xp_points || 0) % 100);
-  const level = Math.floor((user?.xp_points || 0) / 100) + 1;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+    } catch {}
     logout();
-    navigate('/login');
+    toast.success('Déconnecté');
+    navigate('/');
   };
 
   return (
@@ -83,15 +54,31 @@ export function Sidebar() {
               className="overflow-hidden"
             >
               <h1 className="font-bold text-xl gradient-text">Papillon</h1>
-              <p className="text-xs text-muted-foreground">L'école qui vous donne des ailes</p>
+              <p className="text-xs text-muted-foreground">Agrégateur ENT</p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
+      {/* User Info */}
+      {sidebarOpen && user && (
+        <div className="p-4 border-b border-border">
+          <p className="font-medium truncate">{user.display_name}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="outline" className="gap-1">
+              <div className={`w-2 h-2 rounded-full ${user.provider === 'pronote' ? 'bg-blue-500' : 'bg-green-500'}`} />
+              {user.provider === 'pronote' ? 'Pronote' : 'EcoleDirecte'}
+            </Badge>
+          </div>
+          {user.class_name && (
+            <p className="text-xs text-muted-foreground mt-1">{user.class_name}</p>
+          )}
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {items.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -136,28 +123,14 @@ export function Sidebar() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                Assistant Papillon
+                Assistant IA
               </motion.span>
             )}
           </AnimatePresence>
         </Button>
       </div>
 
-      {/* XP Progress */}
-      {user?.role === 'student' && sidebarOpen && (
-        <div className="p-3 border-t border-border">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm font-medium">Niveau {level}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">{user?.xp_points || 0} XP</span>
-          </div>
-          <Progress value={xpProgress} className="h-2 xp-gradient" />
-        </div>
-      )}
-
-      {/* User & Settings */}
+      {/* Settings & Logout */}
       <div className="p-3 border-t border-border space-y-1">
         <NavLink
           to="/settings"
@@ -210,7 +183,6 @@ export function Sidebar() {
       <button
         onClick={toggleSidebar}
         className="absolute -right-3 top-20 w-6 h-6 bg-card border border-border rounded-full flex items-center justify-center shadow-lg hover:bg-muted transition-colors"
-        data-testid="sidebar-toggle"
       >
         {sidebarOpen ? (
           <ChevronLeft className="w-4 h-4" />

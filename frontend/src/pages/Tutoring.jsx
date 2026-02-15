@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Brain, Sparkles, BookOpen, Play, CheckCircle2, 
-  XCircle, ChevronRight, Trophy, Loader2, GraduationCap
+  XCircle, ChevronRight, Loader2, GraduationCap
 } from 'lucide-react';
-import { quizzesAPI, aiAPI, curriculumAPI } from '../lib/api';
+import { aiAPI } from '../lib/api';
 import { useAuthStore } from '../store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -39,10 +39,8 @@ const SUBJECTS = [
 ];
 
 export function Tutoring() {
-  const { user, updateUser } = useAuthStore();
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('quiz-generator');
-  const [quizzes, setQuizzes] = useState([]);
-  const [curriculum, setCurriculum] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   
   // Quiz Generator State
@@ -67,30 +65,6 @@ export function Tutoring() {
   const [tutoringResponse, setTutoringResponse] = useState('');
   const [isTutoring, setIsTutoring] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [quizzesRes, curriculumRes] = await Promise.all([
-        quizzesAPI.getAll().catch(() => ({ data: [] })),
-        curriculumAPI.getAll().catch(() => ({ data: {} })),
-      ]);
-      
-      setQuizzes(quizzesRes.data || []);
-      setCurriculum(curriculumRes.data || {});
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-
-  const getTopicsForSubject = () => {
-    const levelData = curriculum[quizParams.class_level];
-    if (!levelData) return [];
-    return levelData[quizParams.subject] || [];
-  };
-
   const handleGenerateQuiz = async () => {
     if (!quizParams.subject || !quizParams.topic) {
       toast.error('Veuillez sélectionner une matière et un sujet');
@@ -99,7 +73,7 @@ export function Tutoring() {
 
     setIsLoading(true);
     try {
-      const { data } = await quizzesAPI.generate(quizParams);
+      const { data } = await aiAPI.generateQuiz(quizParams);
       toast.success('Quiz généré avec succès !');
       setActiveQuiz(data);
       setCurrentQuestion(0);
@@ -128,24 +102,24 @@ export function Tutoring() {
     if (currentQuestion < activeQuiz.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      // Quiz finished, submit
-      handleSubmitQuiz(newAnswers);
-    }
-  };
-
-  const handleSubmitQuiz = async (finalAnswers) => {
-    try {
-      const { data } = await quizzesAPI.submit(activeQuiz.id, finalAnswers);
-      setQuizResult(data);
-      setShowResult(true);
+      // Calculate result
+      const questions = activeQuiz.questions;
+      let correct = 0;
+      newAnswers.forEach((answer, i) => {
+        if (answer === questions[i]?.correct_answer) correct++;
+      });
       
-      // Update user XP
-      if (data.xp_earned) {
-        updateUser({ xp_points: (user?.xp_points || 0) + data.xp_earned });
-        toast.success(`+${data.xp_earned} XP gagnés !`);
-      }
-    } catch (error) {
-      toast.error('Erreur lors de la soumission du quiz');
+      setQuizResult({
+        score: (correct / questions.length) * 100,
+        correct,
+        total: questions.length,
+        answers: newAnswers.map((a, i) => ({
+          userAnswer: a,
+          correctAnswer: questions[i]?.correct_answer,
+          isCorrect: a === questions[i]?.correct_answer
+        }))
+      });
+      setShowResult(true);
     }
   };
 
@@ -157,17 +131,11 @@ export function Tutoring() {
       const { data } = await aiAPI.tutoring(
         quizParams.subject || 'Général',
         quizParams.topic || 'Question libre',
-        tutoringQuestion,
-        quizParams.class_level
+        tutoringQuestion
       );
       setTutoringResponse(data.response);
-      
-      if (data.xp_earned) {
-        updateUser({ xp_points: (user?.xp_points || 0) + data.xp_earned });
-        toast.success(`+${data.xp_earned} XP pour avoir utilisé le soutien !`);
-      }
     } catch (error) {
-      toast.error('Erreur lors de la demande de soutien');
+      toast.error('Erreur lors de la demande');
     } finally {
       setIsTutoring(false);
     }
@@ -198,9 +166,9 @@ export function Tutoring() {
               <Brain className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Quiz & Soutien scolaire</h1>
+              <h1 className="text-2xl font-bold">Quiz & Aide IA</h1>
               <p className="text-muted-foreground">
-                Générez des quiz personnalisés et obtenez de l'aide avec l'IA
+                Générez des quiz et obtenez de l'aide avec l'IA Papillon
               </p>
             </div>
           </div>
@@ -210,8 +178,8 @@ export function Tutoring() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="quiz-generator">Générateur</TabsTrigger>
-          <TabsTrigger value="take-quiz" disabled={!activeQuiz}>Quiz actif</TabsTrigger>
-          <TabsTrigger value="tutoring">Soutien</TabsTrigger>
+          <TabsTrigger value="take-quiz" disabled={!activeQuiz}>Quiz</TabsTrigger>
+          <TabsTrigger value="tutoring">Aide</TabsTrigger>
         </TabsList>
 
         {/* Quiz Generator */}
@@ -229,9 +197,9 @@ export function Tutoring() {
                   <label className="text-sm font-medium">Niveau</label>
                   <Select
                     value={quizParams.class_level}
-                    onValueChange={(value) => setQuizParams(prev => ({ ...prev, class_level: value, topic: '' }))}
+                    onValueChange={(value) => setQuizParams(prev => ({ ...prev, class_level: value }))}
                   >
-                    <SelectTrigger data-testid="quiz-level-select">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,9 +216,9 @@ export function Tutoring() {
                   <label className="text-sm font-medium">Matière</label>
                   <Select
                     value={quizParams.subject}
-                    onValueChange={(value) => setQuizParams(prev => ({ ...prev, subject: value, topic: '' }))}
+                    onValueChange={(value) => setQuizParams(prev => ({ ...prev, subject: value }))}
                   >
-                    <SelectTrigger data-testid="quiz-subject-select">
+                    <SelectTrigger>
                       <SelectValue placeholder="Choisir une matière" />
                     </SelectTrigger>
                     <SelectContent>
@@ -266,30 +234,11 @@ export function Tutoring() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sujet / Thème</label>
-                {getTopicsForSubject().length > 0 ? (
-                  <Select
-                    value={quizParams.topic}
-                    onValueChange={(value) => setQuizParams(prev => ({ ...prev, topic: value }))}
-                  >
-                    <SelectTrigger data-testid="quiz-topic-select">
-                      <SelectValue placeholder="Choisir un sujet du programme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getTopicsForSubject().map(topic => (
-                        <SelectItem key={topic} value={topic}>
-                          {topic}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={quizParams.topic}
-                    onChange={(e) => setQuizParams(prev => ({ ...prev, topic: e.target.value }))}
-                    placeholder="Ex: Les fractions, La Révolution française..."
-                    data-testid="quiz-topic-input"
-                  />
-                )}
+                <Input
+                  value={quizParams.topic}
+                  onChange={(e) => setQuizParams(prev => ({ ...prev, topic: e.target.value }))}
+                  placeholder="Ex: Les fractions, La Révolution française..."
+                />
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -301,9 +250,8 @@ export function Tutoring() {
                     value={[quizParams.num_questions]}
                     onValueChange={([value]) => setQuizParams(prev => ({ ...prev, num_questions: value }))}
                     min={3}
-                    max={15}
+                    max={10}
                     step={1}
-                    data-testid="quiz-questions-slider"
                   />
                 </div>
 
@@ -313,7 +261,7 @@ export function Tutoring() {
                     value={quizParams.difficulty}
                     onValueChange={(value) => setQuizParams(prev => ({ ...prev, difficulty: value }))}
                   >
-                    <SelectTrigger data-testid="quiz-difficulty-select">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -329,7 +277,6 @@ export function Tutoring() {
                 onClick={handleGenerateQuiz}
                 disabled={isLoading || !quizParams.subject || !quizParams.topic}
                 className="w-full rounded-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                data-testid="generate-quiz-btn"
               >
                 {isLoading ? (
                   <>
@@ -343,54 +290,6 @@ export function Tutoring() {
                   </>
                 )}
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Existing Quizzes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quiz disponibles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {quizzes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Aucun quiz disponible</p>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {quizzes.map((quiz) => (
-                    <motion.button
-                      key={quiz.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setActiveQuiz(quiz);
-                        setCurrentQuestion(0);
-                        setAnswers([]);
-                        setShowResult(false);
-                        setActiveTab('take-quiz');
-                      }}
-                      className="p-4 rounded-xl border border-border text-left hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-medium">{quiz.title}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {quiz.questions?.length || 0} questions
-                          </p>
-                        </div>
-                        {quiz.is_ai_generated && (
-                          <Badge variant="secondary" className="gap-1">
-                            <Sparkles className="w-3 h-3" />
-                            IA
-                          </Badge>
-                        )}
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -431,7 +330,6 @@ export function Tutoring() {
                               ? "border-primary bg-primary/10"
                               : "border-border hover:border-primary/50"
                           )}
-                          data-testid={`answer-option-${index}`}
                         >
                           <div className="flex items-center gap-3">
                             <div className={cn(
@@ -452,7 +350,6 @@ export function Tutoring() {
                       onClick={handleNextQuestion}
                       disabled={selectedAnswer === null}
                       className="w-full"
-                      data-testid="next-question-btn"
                     >
                       {currentQuestion < activeQuiz.questions.length - 1 ? (
                         <>
@@ -473,34 +370,27 @@ export function Tutoring() {
             <Card>
               <CardContent className="p-8 text-center">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6">
-                  <Trophy className="w-10 h-10 text-white" />
+                  <GraduationCap className="w-10 h-10 text-white" />
                 </div>
                 
                 <h2 className="text-2xl font-bold mb-2">Quiz terminé !</h2>
                 <p className="text-4xl font-bold text-primary mb-4">
-                  {quizResult.result?.score?.toFixed(0)}%
+                  {quizResult.score.toFixed(0)}%
                 </p>
                 
                 <div className="flex justify-center gap-4 mb-6">
                   <div className="flex items-center gap-2 text-green-500">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>{quizResult.result?.answers?.filter(a => a.correct).length || 0} correct</span>
+                    <span>{quizResult.correct} correct</span>
                   </div>
                   <div className="flex items-center gap-2 text-red-500">
                     <XCircle className="w-5 h-5" />
-                    <span>{quizResult.result?.answers?.filter(a => !a.correct).length || 0} incorrect</span>
+                    <span>{quizResult.total - quizResult.correct} incorrect</span>
                   </div>
                 </div>
 
-                {quizResult.xp_earned > 0 && (
-                  <Badge className="mb-6 gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    +{quizResult.xp_earned} XP gagnés
-                  </Badge>
-                )}
-
-                <Button onClick={resetQuiz} className="rounded-full" data-testid="restart-quiz-btn">
-                  Créer un nouveau quiz
+                <Button onClick={resetQuiz} className="rounded-full">
+                  Nouveau quiz
                 </Button>
               </CardContent>
             </Card>
@@ -513,47 +403,13 @@ export function Tutoring() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-primary" />
-                Soutien scolaire IA
+                Aide aux devoirs
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Posez une question sur n'importe quel sujet et recevez une explication claire et adaptée à votre niveau.
+                Posez une question sur n'importe quel sujet et recevez une explication claire.
               </p>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <Select
-                  value={quizParams.subject}
-                  onValueChange={(value) => setQuizParams(prev => ({ ...prev, subject: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Matière (optionnel)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUBJECTS.map(subject => (
-                      <SelectItem key={subject} value={subject}>
-                        {subject}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={quizParams.class_level}
-                  onValueChange={(value) => setQuizParams(prev => ({ ...prev, class_level: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CLASS_LEVELS.map(level => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Votre question</label>
@@ -562,7 +418,6 @@ export function Tutoring() {
                   onChange={(e) => setTutoringQuestion(e.target.value)}
                   placeholder="Ex: Comment résoudre une équation du second degré ?"
                   className="w-full min-h-[100px] p-3 rounded-xl border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  data-testid="tutoring-question-input"
                 />
               </div>
 
@@ -570,12 +425,11 @@ export function Tutoring() {
                 onClick={handleTutoring}
                 disabled={isTutoring || !tutoringQuestion.trim()}
                 className="w-full"
-                data-testid="ask-tutor-btn"
               >
                 {isTutoring ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Réflexion en cours...
+                    Réflexion...
                   </>
                 ) : (
                   <>

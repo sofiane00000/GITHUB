@@ -11,10 +11,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Timetable } from "./pages/Timetable";
 import { Grades } from "./pages/Grades";
 import { Homework } from "./pages/Homework";
-import { Messages } from "./pages/Messages";
-import { Resources } from "./pages/Resources";
 import { Tutoring } from "./pages/Tutoring";
-import { Forum } from "./pages/Forum";
 import { Settings } from "./pages/Settings";
 
 // Layout
@@ -49,7 +46,6 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Landing />} />
             
             {/* Protected Routes */}
             <Route
@@ -63,10 +59,7 @@ function App() {
               <Route path="/timetable" element={<Timetable />} />
               <Route path="/grades" element={<Grades />} />
               <Route path="/homework" element={<Homework />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/resources" element={<Resources />} />
               <Route path="/tutoring" element={<Tutoring />} />
-              <Route path="/forum" element={<Forum />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
 
