@@ -380,8 +380,8 @@ async def login(request: ENTLoginRequest):
         }
     
     elif request.provider == "ecoledirecte":
-        # Connect to EcoleDirecte (async)
-        ed_client, error = await connect_ecoledirecte(
+        # Connect to EcoleDirecte (async wrapper)
+        ed_result, error = await connect_ecoledirecte(
             request.username,
             request.password
         )
@@ -389,16 +389,31 @@ async def login(request: ENTLoginRequest):
         if error:
             raise HTTPException(status_code=401, detail=f"Connexion EcoleDirecte échouée: {error}")
         
-        # Get user info from ED
+        # Get user info from ED response (dict format from EcoleDirectePy)
         display_name = request.username
+        class_name = None
+        school_name = None
+        
         try:
-            if hasattr(ed_client, 'nom') and hasattr(ed_client, 'prenom'):
-                display_name = f"{ed_client.prenom} {ed_client.nom}"
-            elif hasattr(ed_client, 'eleves') and ed_client.eleves:
-                eleve = ed_client.eleves[0]
-                display_name = f"{eleve.get('prenom', '')} {eleve.get('nom', '')}"
-        except:
-            pass
+            # EcoleDirectePy returns a dict with 'data' containing account info
+            data = ed_result.get('data', {})
+            accounts = data.get('accounts', [])
+            
+            if accounts:
+                account = accounts[0]
+                prenom = account.get('prenom', '')
+                nom = account.get('nom', '')
+                if prenom or nom:
+                    display_name = f"{prenom} {nom}".strip()
+                
+                # Get class and school info
+                profile = account.get('profile', {})
+                class_name = profile.get('classe', {}).get('libelle') if profile.get('classe') else None
+                
+                # Get school name from nomEtablissement
+                school_name = account.get('nomEtablissement', '')
+        except Exception as e:
+            logging.error(f"Error parsing ED user info: {e}")
         
         # Save or update user
         user_id = str(uuid.uuid4())
@@ -414,6 +429,9 @@ async def login(request: ENTLoginRequest):
                 {"$set": {
                     "password": request.password,
                     "display_name": display_name,
+                    "class_name": class_name,
+                    "school_name": school_name,
+                    "ed_token": ed_result.get('token', ''),
                     "last_login": datetime.now(timezone.utc).isoformat()
                 }}
             )
@@ -424,6 +442,9 @@ async def login(request: ENTLoginRequest):
                 "username": request.username,
                 "password": request.password,
                 "display_name": display_name,
+                "class_name": class_name,
+                "school_name": school_name,
+                "ed_token": ed_result.get('token', ''),
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "last_login": datetime.now(timezone.utc).isoformat(),
                 "theme_settings": {}
@@ -438,6 +459,8 @@ async def login(request: ENTLoginRequest):
                 "id": user_id,
                 "provider": "ecoledirecte",
                 "display_name": display_name,
+                "class_name": class_name,
+                "school_name": school_name,
             }
         }
     
