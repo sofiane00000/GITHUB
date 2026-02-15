@@ -649,18 +649,24 @@ async def get_timetable(date_str: Optional[str] = None, current_user: dict = Dep
         return {"lessons": lessons, "provider": "pronote"}
     
     elif current_user.get("provider") == "ecoledirecte":
-        client, error = await get_ecoledirecte_client(current_user)
-        if error:
-            raise HTTPException(status_code=401, detail=error)
-        
         lessons = []
         try:
-            # Get timetable from async ecoledirecte client
-            if hasattr(client, 'get_timetable'):
+            import EcoleDirectePy
+            
+            # First login to set the session
+            login_result = EcoleDirectePy.login(
+                current_user.get("username"),
+                current_user.get("password")
+            )
+            
+            if login_result and login_result.get('code') == 200:
                 week_start = target_date - timedelta(days=target_date.weekday())
                 week_end = week_start + timedelta(days=6)
-                raw_edt = await client.get_timetable(week_start, week_end)
-                if raw_edt:
+                raw_edt = EcoleDirectePy.emploidutemps(
+                    week_start.strftime("%Y-%m-%d"),
+                    week_end.strftime("%Y-%m-%d")
+                )
+                if raw_edt and isinstance(raw_edt, list):
                     for cours in raw_edt:
                         lessons.append({
                             "id": str(uuid.uuid4()),
