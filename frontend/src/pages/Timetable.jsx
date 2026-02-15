@@ -1,41 +1,32 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react';
-import { timetableAPI, subjectsAPI } from '../lib/api';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, X } from 'lucide-react';
+import { timetableAPI } from '../lib/api';
+import { useAuthStore } from '../store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { cn } from '../lib/utils';
-import { format, addWeeks, subWeeks, startOfWeek, addDays } from 'date-fns';
+import { format, addDays, subDays, parseISO, startOfWeek, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { cn } from '../lib/utils';
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8h to 19h
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 export function Timetable() {
+  const { user } = useAuthStore();
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [timetable, setTimetable] = useState([]);
-  const [subjects, setSubjects] = useState({});
+  const [lessons, setLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchTimetable();
+  }, [currentWeek]);
 
-  const fetchData = async () => {
+  const fetchTimetable = async () => {
     try {
-      const [timetableRes, subjectsRes] = await Promise.all([
-        timetableAPI.get(),
-        subjectsAPI.getAll(),
-      ]);
-      
-      setTimetable(timetableRes.data || []);
-      
-      const subjectsMap = {};
-      (subjectsRes.data || []).forEach(s => {
-        subjectsMap[s.id] = s;
-      });
-      setSubjects(subjectsMap);
+      const { data } = await timetableAPI.get(format(currentWeek, 'yyyy-MM-dd'));
+      setLessons(data.lessons || []);
     } catch (error) {
       console.error('Error fetching timetable:', error);
     } finally {
@@ -45,20 +36,41 @@ export function Timetable() {
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
 
-  const getSlotStyle = (slot) => {
-    const startHour = parseInt(slot.start_time.split(':')[0]);
-    const startMin = parseInt(slot.start_time.split(':')[1]);
-    const endHour = parseInt(slot.end_time.split(':')[0]);
-    const endMin = parseInt(slot.end_time.split(':')[1]);
+  // Group lessons by day
+  const getLessonsByDay = (dayIndex) => {
+    const targetDate = addDays(weekStart, dayIndex);
+    const targetDateStr = format(targetDate, 'yyyy-MM-dd');
     
-    const top = ((startHour - 8) * 60 + startMin) * (80 / 60);
-    const height = ((endHour - startHour) * 60 + (endMin - startMin)) * (80 / 60);
-    
-    return { top: `${top}px`, height: `${height}px` };
+    return lessons.filter(lesson => {
+      if (!lesson.start) return false;
+      try {
+        const lessonDate = format(parseISO(lesson.start), 'yyyy-MM-dd');
+        return lessonDate === targetDateStr;
+      } catch {
+        return false;
+      }
+    }).sort((a, b) => a.start?.localeCompare(b.start));
   };
 
-  const getSlotsByDay = (dayIndex) => {
-    return timetable.filter(slot => slot.day_of_week === dayIndex);
+  const getSlotStyle = (lesson) => {
+    if (!lesson.start || !lesson.end) return { top: '0px', height: '80px' };
+    
+    try {
+      const start = parseISO(lesson.start);
+      const end = parseISO(lesson.end);
+      
+      const startHour = start.getHours();
+      const startMin = start.getMinutes();
+      const endHour = end.getHours();
+      const endMin = end.getMinutes();
+      
+      const top = ((startHour - 8) * 60 + startMin) * (80 / 60);
+      const height = ((endHour - startHour) * 60 + (endMin - startMin)) * (80 / 60);
+      
+      return { top: `${top}px`, height: `${Math.max(height, 40)}px` };
+    } catch {
+      return { top: '0px', height: '80px' };
+    }
   };
 
   return (
@@ -70,17 +82,19 @@ export function Timetable() {
     >
       {/* Header */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
           <CardTitle className="flex items-center gap-2">
             <CalendarIcon className="w-6 h-6 text-primary" />
             Emploi du temps
+            <Badge variant="outline" className="ml-2">
+              {user?.provider === 'pronote' ? 'Pronote' : 'EcoleDirecte'}
+            </Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-              data-testid="prev-week-btn"
+              onClick={() => setCurrentWeek(subDays(currentWeek, 7))}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -90,8 +104,7 @@ export function Timetable() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-              data-testid="next-week-btn"
+              onClick={() => setCurrentWeek(addDays(currentWeek, 7))}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -124,23 +137,23 @@ export function Timetable() {
             </div>
 
             {/* Days Columns */}
-            <div className="flex-1 flex">
+            <div className="flex-1 flex overflow-x-auto">
               {DAYS.map((day, dayIndex) => {
                 const date = addDays(weekStart, dayIndex);
-                const isToday = format(new Date(), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
-                const slots = getSlotsByDay(dayIndex);
+                const todayCheck = isToday(date);
+                const dayLessons = getLessonsByDay(dayIndex);
 
                 return (
-                  <div key={day} className="flex-1 min-w-0 border-r border-border last:border-r-0">
+                  <div key={day} className="flex-1 min-w-[150px] border-r border-border last:border-r-0">
                     {/* Day Header */}
                     <div className={cn(
                       "h-12 flex flex-col items-center justify-center border-b border-border",
-                      isToday && "bg-primary/10"
+                      todayCheck && "bg-primary/10"
                     )}>
                       <span className="text-sm font-medium">{day}</span>
                       <span className={cn(
                         "text-xs",
-                        isToday ? "text-primary font-semibold" : "text-muted-foreground"
+                        todayCheck ? "text-primary font-semibold" : "text-muted-foreground"
                       )}>
                         {format(date, 'd MMM', { locale: fr })}
                       </span>
@@ -157,34 +170,44 @@ export function Timetable() {
                       ))}
 
                       {/* Course Slots */}
-                      {slots.map((slot, i) => {
-                        const style = getSlotStyle(slot);
-                        const subject = subjects[slot.subject_id] || {};
+                      {dayLessons.map((lesson, i) => {
+                        const style = getSlotStyle(lesson);
                         
                         return (
                           <motion.div
-                            key={slot.id}
+                            key={lesson.id || i}
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.05 }}
-                            className="absolute left-1 right-1 rounded-lg p-2 overflow-hidden cursor-pointer hover:z-10 transition-all hover:shadow-lg"
+                            className={cn(
+                              "absolute left-1 right-1 rounded-lg p-2 overflow-hidden cursor-pointer hover:z-10 transition-all hover:shadow-lg",
+                              lesson.canceled && "opacity-50"
+                            )}
                             style={{
                               ...style,
-                              backgroundColor: slot.subject_color || subject.color || '#4F46E5',
+                              backgroundColor: lesson.subject_color || '#4F46E5',
                             }}
-                            data-testid={`timetable-slot-${slot.id}`}
                           >
                             <div className="text-white text-xs font-medium truncate">
-                              {slot.subject_name || subject.name}
+                              {lesson.subject}
                             </div>
-                            <div className="text-white/80 text-xs truncate flex items-center gap-1 mt-0.5">
-                              <Clock className="w-3 h-3" />
-                              {slot.start_time} - {slot.end_time}
-                            </div>
-                            <div className="text-white/80 text-xs truncate flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {slot.room}
-                            </div>
+                            {lesson.start && lesson.end && (
+                              <div className="text-white/80 text-xs truncate flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3" />
+                                {format(parseISO(lesson.start), 'HH:mm')} - {format(parseISO(lesson.end), 'HH:mm')}
+                              </div>
+                            )}
+                            {lesson.room && (
+                              <div className="text-white/80 text-xs truncate flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {lesson.room}
+                              </div>
+                            )}
+                            {lesson.canceled && (
+                              <div className="absolute top-1 right-1">
+                                <X className="w-4 h-4 text-white" />
+                              </div>
+                            )}
                           </motion.div>
                         );
                       })}
@@ -197,25 +220,41 @@ export function Timetable() {
         </CardContent>
       </Card>
 
-      {/* Legend */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-3">
-            {Object.values(subjects).map(subject => (
-              <Badge
-                key={subject.id}
-                variant="outline"
-                className="gap-2"
-                style={{ borderColor: subject.color }}
-              >
+      {/* Today's Lessons List (Mobile Friendly) */}
+      <Card className="lg:hidden">
+        <CardHeader>
+          <CardTitle className="text-lg">Cours du jour</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {getLessonsByDay(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1).length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">Pas de cours aujourd'hui</p>
+          ) : (
+            <div className="space-y-3">
+              {getLessonsByDay(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1).map((lesson, i) => (
                 <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: subject.color }}
-                />
-                {subject.name}
-              </Badge>
-            ))}
-          </div>
+                  key={lesson.id || i}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl bg-muted/50",
+                    lesson.canceled && "opacity-50"
+                  )}
+                >
+                  <div 
+                    className="w-1 h-12 rounded-full"
+                    style={{ backgroundColor: lesson.subject_color || '#4F46E5' }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{lesson.subject}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {lesson.start && format(parseISO(lesson.start), 'HH:mm')}
+                      {lesson.end && ` - ${format(parseISO(lesson.end), 'HH:mm')}`}
+                      {lesson.room && ` • ${lesson.room}`}
+                    </p>
+                  </div>
+                  {lesson.canceled && <Badge variant="destructive">Annulé</Badge>}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

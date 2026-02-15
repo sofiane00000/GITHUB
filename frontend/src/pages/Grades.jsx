@@ -1,21 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, TrendingUp, TrendingDown, Minus, Filter } from 'lucide-react';
-import { gradesAPI, subjectsAPI } from '../lib/api';
+import { GraduationCap, TrendingUp, Filter } from 'lucide-react';
+import { gradesAPI } from '../lib/api';
+import { useAuthStore } from '../store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
+  BarChart, Bar, Cell
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -23,25 +16,18 @@ import { fr } from 'date-fns/locale';
 const COLORS = ['#4F46E5', '#F43F5E', '#0EA5E9', '#10B981', '#F59E0B', '#8B5CF6'];
 
 export function Grades() {
+  const { user } = useAuthStore();
   const [grades, setGrades] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState('all');
-  const [selectedTrimester, setSelectedTrimester] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchGrades();
   }, []);
 
-  const fetchData = async () => {
+  const fetchGrades = async () => {
     try {
-      const [gradesRes, subjectsRes] = await Promise.all([
-        gradesAPI.getAll(),
-        subjectsAPI.getAll(),
-      ]);
-      
-      setGrades(gradesRes.data || []);
-      setSubjects(subjectsRes.data || []);
+      const { data } = await gradesAPI.getAll();
+      setGrades(data.grades || []);
     } catch (error) {
       console.error('Error fetching grades:', error);
     } finally {
@@ -49,69 +35,76 @@ export function Grades() {
     }
   };
 
-  const filteredGrades = grades.filter(grade => {
-    if (selectedSubject !== 'all' && grade.subject_id !== selectedSubject) return false;
-    if (selectedTrimester !== 'all' && grade.trimester !== parseInt(selectedTrimester)) return false;
-    return true;
-  });
+  // Parse grade value
+  const parseGrade = (g) => {
+    if (!g.value) return null;
+    const value = parseFloat(g.value.replace(',', '.'));
+    const outOf = parseFloat(g.out_of?.replace(',', '.') || '20');
+    return { value, outOf, normalized: (value / outOf) * 20 };
+  };
 
+  // Calculate stats
   const calculateStats = () => {
-    if (filteredGrades.length === 0) return { average: 0, min: 0, max: 0, count: 0 };
+    const validGrades = grades.map(parseGrade).filter(g => g !== null);
+    if (validGrades.length === 0) return { average: 0, min: 0, max: 0, count: 0 };
     
-    const values = filteredGrades.map(g => (g.value / g.max_value) * 20);
-    const weightedSum = filteredGrades.reduce((sum, g) => 
-      sum + (g.value / g.max_value) * 20 * g.coefficient, 0);
-    const totalCoef = filteredGrades.reduce((sum, g) => sum + g.coefficient, 0);
+    const totalWeighted = grades.reduce((sum, g) => {
+      const parsed = parseGrade(g);
+      if (!parsed) return sum;
+      return sum + parsed.normalized * (g.coefficient || 1);
+    }, 0);
+    const totalCoef = grades.reduce((sum, g) => sum + (g.coefficient || 1), 0);
     
     return {
-      average: totalCoef > 0 ? (weightedSum / totalCoef).toFixed(2) : 0,
-      min: Math.min(...values).toFixed(2),
-      max: Math.max(...values).toFixed(2),
-      count: filteredGrades.length,
+      average: totalCoef > 0 ? (totalWeighted / totalCoef).toFixed(2) : 0,
+      min: Math.min(...validGrades.map(g => g.normalized)).toFixed(2),
+      max: Math.max(...validGrades.map(g => g.normalized)).toFixed(2),
+      count: grades.length,
     };
   };
 
+  // Get subject averages
   const getSubjectAverages = () => {
     const subjectGrades = {};
     
     grades.forEach(grade => {
-      if (!subjectGrades[grade.subject_id]) {
-        subjectGrades[grade.subject_id] = { total: 0, coef: 0 };
+      const parsed = parseGrade(grade);
+      if (!parsed) return;
+      
+      const subject = grade.subject || 'Autre';
+      if (!subjectGrades[subject]) {
+        subjectGrades[subject] = { total: 0, coef: 0, color: grade.subject_color || COLORS[Object.keys(subjectGrades).length % COLORS.length] };
       }
-      subjectGrades[grade.subject_id].total += (grade.value / grade.max_value) * 20 * grade.coefficient;
-      subjectGrades[grade.subject_id].coef += grade.coefficient;
+      subjectGrades[subject].total += parsed.normalized * (grade.coefficient || 1);
+      subjectGrades[subject].coef += (grade.coefficient || 1);
     });
 
-    return subjects.map((subject, i) => ({
-      name: subject.name,
-      average: subjectGrades[subject.id] 
-        ? (subjectGrades[subject.id].total / subjectGrades[subject.id].coef).toFixed(2)
-        : 0,
-      color: subject.color || COLORS[i % COLORS.length],
-    })).filter(s => parseFloat(s.average) > 0);
+    return Object.entries(subjectGrades).map(([name, data]) => ({
+      name,
+      average: data.coef > 0 ? (data.total / data.coef).toFixed(2) : 0,
+      color: data.color,
+    })).sort((a, b) => parseFloat(b.average) - parseFloat(a.average));
   };
 
+  // Get grades trend
   const getGradesTrend = () => {
-    const sorted = [...filteredGrades].sort((a, b) => 
-      new Date(a.date) - new Date(b.date)
-    );
-    
-    return sorted.map((grade, i) => ({
-      name: format(parseISO(grade.date), 'dd/MM', { locale: fr }),
-      value: (grade.value / grade.max_value) * 20,
-      subject: subjects.find(s => s.id === grade.subject_id)?.name || 'Matière',
-    }));
+    return grades
+      .filter(g => g.date && parseGrade(g))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-15)
+      .map((grade) => {
+        const parsed = parseGrade(grade);
+        return {
+          name: format(parseISO(grade.date), 'dd/MM', { locale: fr }),
+          value: parsed?.normalized || 0,
+          subject: grade.subject || 'Matière',
+        };
+      });
   };
 
   const stats = calculateStats();
   const subjectAverages = getSubjectAverages();
   const gradesTrend = getGradesTrend();
-
-  const getTrendIcon = (current, previous) => {
-    if (current > previous) return <TrendingUp className="w-4 h-4 text-green-500" />;
-    if (current < previous) return <TrendingDown className="w-4 h-4 text-red-500" />;
-    return <Minus className="w-4 h-4 text-muted-foreground" />;
-  };
 
   return (
     <motion.div
@@ -122,38 +115,14 @@ export function Grades() {
     >
       {/* Header */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             Mes notes
+            <Badge variant="outline" className="ml-2">
+              {user?.provider === 'pronote' ? 'Pronote' : 'EcoleDirecte'}
+            </Badge>
           </CardTitle>
-          <div className="flex items-center gap-4">
-            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="w-40" data-testid="subject-filter">
-                <SelectValue placeholder="Matière" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                {subjects.map(subject => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedTrimester} onValueChange={setSelectedTrimester}>
-              <SelectTrigger className="w-40" data-testid="trimester-filter">
-                <SelectValue placeholder="Trimestre" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="1">Trimestre 1</SelectItem>
-                <SelectItem value="2">Trimestre 2</SelectItem>
-                <SelectItem value="3">Trimestre 3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </CardHeader>
       </Card>
 
@@ -281,41 +250,41 @@ export function Grades() {
               <CardTitle className="text-lg">Toutes les notes</CardTitle>
             </CardHeader>
             <CardContent>
-              {filteredGrades.length === 0 ? (
+              {grades.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
                   Aucune note à afficher
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredGrades
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                  {grades
+                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
                     .map((grade, i) => {
-                      const subject = subjects.find(s => s.id === grade.subject_id);
-                      const value = (grade.value / grade.max_value) * 20;
+                      const parsed = parseGrade(grade);
                       
                       return (
                         <motion.div
-                          key={grade.id}
+                          key={grade.id || i}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.05 }}
+                          transition={{ delay: i * 0.03 }}
                           className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                         >
                           <div
                             className="w-2 h-12 rounded-full"
-                            style={{ backgroundColor: subject?.color || '#4F46E5' }}
+                            style={{ backgroundColor: grade.subject_color || '#4F46E5' }}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium">{grade.description}</p>
+                            <p className="font-medium">{grade.comment || 'Note'}</p>
                             <p className="text-sm text-muted-foreground">
-                              {subject?.name || 'Matière'} • {format(parseISO(grade.date), 'dd MMMM yyyy', { locale: fr })}
+                              {grade.subject || 'Matière'}
+                              {grade.date && ` • ${format(parseISO(grade.date), 'dd MMMM yyyy', { locale: fr })}`}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className={`text-xl font-bold ${value >= 10 ? 'text-green-500' : 'text-secondary'}`}>
-                              {grade.value}/{grade.max_value}
+                            <p className={`text-xl font-bold ${parsed && parsed.normalized >= 10 ? 'text-green-500' : 'text-secondary'}`}>
+                              {grade.value}/{grade.out_of || '20'}
                             </p>
-                            <Badge variant="outline">Coef. {grade.coefficient}</Badge>
+                            <Badge variant="outline">Coef. {grade.coefficient || 1}</Badge>
                           </div>
                         </motion.div>
                       );
